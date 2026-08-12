@@ -75,3 +75,7 @@ logs/
 
 *.tmp
 *.temp
+
+
+# Python virtual environment
+.venv/

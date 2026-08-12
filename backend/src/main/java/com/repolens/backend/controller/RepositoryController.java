@@ -3,6 +3,7 @@ package com.repolens.backend.controller;
 import com.repolens.backend.model.Repository;
 import com.repolens.backend.service.RepositoryService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,5 +22,14 @@ public class RepositoryController {
     @GetMapping
     public List<Repository> getRepositories() {
         return repositoryService.getRepositories();
+    }
+
+    @GetMapping("/{id}")
+    public Repository getRepository(@PathVariable Long id) {
+        return repositoryService.getRepositories()
+                .stream()
+                .filter(repository -> repository.getId().equals(id))
+                .findFirst()
+                .orElse(null);
     }
 }

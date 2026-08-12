@@ -11,6 +11,7 @@ public class RepositoryService {
     public List<Repository> getRepositories() {
         return List.of(
                 new Repository(
+                        1L,
                         "RepoLens",
                         "https://github.com/PawaniB13/RepoLens"
                 )

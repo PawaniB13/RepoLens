@@ -7,13 +7,16 @@ import org.springframework.stereotype.Service;
 public class RepositoryAnalysisService {
 
     public RepositoryAnalysis analyzeRepository(Long repositoryId) {
-
-        return new RepositoryAnalysis(
-                repositoryId,
-                "RepoLens",
-                10,
-                5,
-                3
-        );
+    if (repositoryId == null || repositoryId <= 0) {
+        throw new IllegalArgumentException("Repository ID must be positive");
     }
+
+    return new RepositoryAnalysis(
+            repositoryId,
+            "RepoLens",
+            10,
+            5,
+            3
+    );
+}
 }

@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 
@@ -25,11 +26,12 @@ public class RepositoryController {
     }
 
     @GetMapping("/{id}")
-    public Repository getRepository(@PathVariable Long id) {
+    public ResponseEntity<Repository> getRepository(@PathVariable Long id) {
         return repositoryService.getRepositories()
                 .stream()
                 .filter(repository -> repository.getId().equals(id))
                 .findFirst()
-                .orElse(null);
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

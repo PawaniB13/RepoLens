@@ -8,17 +8,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/repositories")
 public class RepositoryAnalysisController {
 
-    private final RepositoryAnalysisService analysisService;
+    private final RepositoryAnalysisService repositoryAnalysisService;
 
-    public RepositoryAnalysisController(
-            RepositoryAnalysisService analysisService) {
-        this.analysisService = analysisService;
+    public RepositoryAnalysisController(RepositoryAnalysisService repositoryAnalysisService) {
+        this.repositoryAnalysisService = repositoryAnalysisService;
     }
 
-    @GetMapping("/{id}/analysis")
-    public RepositoryAnalysis analyzeRepository(
-            @PathVariable Long id) {
-
-        return analysisService.analyzeRepository(id);
+    @GetMapping("/{repositoryId}/analysis")
+    public RepositoryAnalysis analyzeRepository(@PathVariable Long repositoryId) {
+        return repositoryAnalysisService.analyzeRepository(repositoryId);
     }
 }

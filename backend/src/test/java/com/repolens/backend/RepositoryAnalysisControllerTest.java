@@ -11,11 +11,13 @@ class RepositoryAnalysisControllerTest {
 
     @Test
     void shouldAnalyzeRepository() {
+
         RepositoryAnalysisService service = new RepositoryAnalysisService();
         RepositoryAnalysisController controller =
                 new RepositoryAnalysisController(service);
 
-        RepositoryAnalysis result = controller.analyzeRepository(1L);
+        RepositoryAnalysis result =
+                controller.analyzeRepository(1L);
 
         assertNotNull(result);
         assertEquals(1L, result.getRepositoryId());

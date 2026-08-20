@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 public class RepositoryAnalysisService {
 
     public RepositoryAnalysis analyzeRepository(Long repositoryId) {
+
     if (repositoryId == null || repositoryId <= 0) {
         throw new IllegalArgumentException("Repository ID must be positive");
     }

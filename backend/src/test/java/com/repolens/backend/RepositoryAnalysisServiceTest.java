@@ -23,26 +23,26 @@ class RepositoryAnalysisServiceTest {
     }
 
     @Test
-void shouldRejectNullRepositoryId() {
-    RepositoryAnalysisService service = new RepositoryAnalysisService();
+    void shouldRejectNullRepositoryId() {
+        RepositoryAnalysisService service = new RepositoryAnalysisService();
 
-    IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> service.analyzeRepository(null)
-    );
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.analyzeRepository(null)
+        );
 
-    assertEquals("Repository ID must be positive", exception.getMessage());
-}
+        assertEquals("Repository ID must be positive", exception.getMessage());
+    }
 
-@Test
-void shouldRejectNonPositiveRepositoryId() {
-    RepositoryAnalysisService service = new RepositoryAnalysisService();
+    @Test
+    void shouldRejectNonPositiveRepositoryId() {
+        RepositoryAnalysisService service = new RepositoryAnalysisService();
 
-    IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> service.analyzeRepository(0L)
-    );
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.analyzeRepository(0L)
+        );
 
-    assertEquals("Repository ID must be positive", exception.getMessage());
-}
+        assertEquals("Repository ID must be positive", exception.getMessage());
+    }
 }

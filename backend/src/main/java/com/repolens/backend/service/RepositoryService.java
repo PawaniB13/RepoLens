@@ -17,4 +17,20 @@ public class RepositoryService {
                 )
         );
     }
+
+    public List<Repository> searchRepositories(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+
+        String normalizedQuery = query.trim().toLowerCase();
+
+        return getRepositories().stream()
+                .filter(repository ->
+                        repository.getName()
+                                .toLowerCase()
+                                .contains(normalizedQuery))
+                .toList();
+    }
 }
+

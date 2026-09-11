@@ -1,19 +1,30 @@
+import { useEffect, useState } from "react";
+import { getRepositories } from "../services/repositoryService";
+
 function Dashboard() {
+  const [repositories, setRepositories] = useState([]);
+  const [selectedRepository, setSelectedRepository] = useState(null);
+  const [showRepositorySelector, setShowRepositorySelector] = useState(false);
+
+  useEffect(() => {
+    const loadRepositories = async () => {
+      const data = await getRepositories();
+      setRepositories(data);
+    };
+
+    loadRepositories();
+  }, []);
+
+  const dashboard = selectedRepository?.dashboard;
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050509] text-white">
 
       {/* =========================================================
           GLOBAL BACKGROUND
-          
-          One continuous color field for the ENTIRE dashboard.
-          Yellow → Orange → Pink → Magenta → Purple
       ========================================================= */}
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-
-        {/* -------------------------------------------------------
-            CONTINUOUS COLOR FIELD
-        ------------------------------------------------------- */}
 
         <div
           className="absolute inset-0"
@@ -93,14 +104,6 @@ function Dashboard() {
           }}
         />
 
-
-        {/* -------------------------------------------------------
-            SOFT COLOR BLOBS
-
-            These make the background less mathematically flat.
-        ------------------------------------------------------- */}
-
-        {/* Yellow bloom */}
         <div
           className="absolute -left-[280px] -top-[260px] h-[850px] w-[850px] rounded-full blur-[150px]"
           style={{
@@ -109,7 +112,6 @@ function Dashboard() {
           }}
         />
 
-        {/* Orange bloom */}
         <div
           className="absolute left-[5%] top-[2%] h-[850px] w-[900px] rounded-full blur-[165px]"
           style={{
@@ -118,7 +120,6 @@ function Dashboard() {
           }}
         />
 
-        {/* Pink center bloom */}
         <div
           className="absolute left-[31%] -top-[180px] h-[900px] w-[950px] rounded-full blur-[180px]"
           style={{
@@ -127,7 +128,6 @@ function Dashboard() {
           }}
         />
 
-        {/* Magenta bloom */}
         <div
           className="absolute right-[2%] -top-[170px] h-[850px] w-[850px] rounded-full blur-[180px]"
           style={{
@@ -136,7 +136,6 @@ function Dashboard() {
           }}
         />
 
-        {/* Purple bloom */}
         <div
           className="absolute -right-[300px] top-[20%] h-[950px] w-[950px] rounded-full blur-[190px]"
           style={{
@@ -145,7 +144,6 @@ function Dashboard() {
           }}
         />
 
-        {/* Lower pink bloom */}
         <div
           className="absolute left-[25%] top-[62%] h-[850px] w-[900px] rounded-full blur-[200px]"
           style={{
@@ -153,13 +151,6 @@ function Dashboard() {
               "radial-gradient(circle, rgba(215,45,120,0.07) 0%, rgba(130,45,150,0.05) 48%, transparent 78%)",
           }}
         />
-
-
-        {/* -------------------------------------------------------
-            DARKNESS / DEPTH
-
-            Keeps the interface dark without killing the colors.
-        ------------------------------------------------------- */}
 
         <div
           className="absolute inset-0"
@@ -175,14 +166,6 @@ function Dashboard() {
           }}
         />
 
-
-        {/* -------------------------------------------------------
-            GRAIN / FILM TEXTURE
-
-            This is intentionally stronger than before.
-            It should be visible, but still subtle.
-        ------------------------------------------------------- */}
-
         <div
           className="absolute inset-0 opacity-[0.075] mix-blend-screen"
           style={{
@@ -192,13 +175,6 @@ function Dashboard() {
             backgroundSize: "180px 180px",
           }}
         />
-
-
-        {/* -------------------------------------------------------
-            VERY SUBTLE LIGHT VARIATION
-
-            Gives the reference-like organic surface.
-        ------------------------------------------------------- */}
 
         <div
           className="absolute inset-0 opacity-[0.035]"
@@ -216,11 +192,6 @@ function Dashboard() {
           }}
         />
 
-
-        {/* -------------------------------------------------------
-            FINAL VIGNETTE
-        ------------------------------------------------------- */}
-
         <div
           className="absolute inset-0"
           style={{
@@ -237,13 +208,109 @@ function Dashboard() {
 
       </div>
 
-
       {/* =========================================================
           CONTENT
       ========================================================= */}
 
       <div className="relative z-10">
 
+        {/* =========================================================
+            REPOSITORY SELECTOR
+        ========================================================= */}
+
+        {showRepositorySelector && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-6 pt-[110px] pb-8 backdrop-blur-md">
+
+            <div className="w-full max-w-3xl rounded-3xl border border-white/10 bg-[#0b0b10] p-6 shadow-2xl sm:p-8">
+
+              <div className="flex items-start justify-between gap-6">
+
+                <div>
+
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#f5f500]">
+                    Repository Selection
+                  </p>
+
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                    Select a repository
+                  </h2>
+
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-white/45">
+                    Choose a connected GitHub repository to view its engineering
+                    knowledge and synchronization state.
+                  </p>
+
+                </div>
+
+                <button
+                  onClick={() => setShowRepositorySelector(false)}
+                  className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/50 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
+                >
+                  Close
+                </button>
+
+              </div>
+
+              <div className="mt-8 space-y-3">
+
+                {repositories.map((repository) => (
+
+                  <div
+                    key={repository.repositoryId}
+                    className="group rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-[#f5f500]/40 hover:bg-white/[0.04]"
+                  >
+
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+                      <div className="min-w-0">
+
+                        <h3 className="text-lg font-medium text-white">
+                          {repository.repositoryName}
+                        </h3>
+
+                        <p className="mt-2 text-sm leading-6 text-white/40">
+                          {repository.description}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+
+                          {repository.mainTechnologies.map((technology) => (
+
+                            <span
+                              key={technology}
+                              className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-white/45"
+                            >
+                              {technology}
+                            </span>
+
+                          ))}
+
+                        </div>
+
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSelectedRepository(repository);
+                          setShowRepositorySelector(false);
+                        }}
+                        className="shrink-0 rounded-xl bg-[#f5f500] px-5 py-3 text-sm font-medium text-[#05060a] transition hover:bg-[#ffff38]"
+                      >
+                        Select
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
 
         {/* =========================================================
             SECTION 1 — OVERVIEW / HERO
@@ -261,49 +328,92 @@ function Dashboard() {
               <span className="h-2 w-2 rounded-full bg-[#f5f500]" />
 
               <span className="text-sm font-medium uppercase tracking-[0.2em] text-white/50">
-                Engineering Intelligence
+                {selectedRepository
+                  ? "Repository Intelligence"
+                  : "Engineering Intelligence"}
               </span>
 
             </div>
 
+            {selectedRepository ? (
+              <>
+                <h1 className="max-w-5xl text-5xl font-semibold leading-[1.05] tracking-[-0.04em] text-white sm:text-6xl lg:text-8xl">
+                  {selectedRepository.repositoryName}
+                </h1>
 
-            <h1 className="max-w-5xl text-5xl font-semibold leading-[1.05] tracking-[-0.04em] text-white sm:text-6xl lg:text-8xl">
+                <p className="mt-6 text-base font-medium text-[#f5f500] sm:text-lg">
+                  {selectedRepository.mainTechnologies.join(" · ")}
+                </p>
 
-              Engineering knowledge,
+                <p className="mt-6 max-w-3xl text-lg leading-8 text-white/55 sm:text-xl">
+                  {selectedRepository.description}
+                </p>
 
-              <br />
+                <div className="mt-10 flex flex-wrap gap-4">
 
-              <span className="text-[#f5f500]">
-                synchronized.
-              </span>
+                  <button
+                    onClick={() => setShowRepositorySelector(true)}
+                    className="rounded-xl bg-[#f5f500] px-6 py-3.5 text-sm font-semibold text-[#05060a] transition hover:scale-[1.02] hover:bg-[#ffff38]"
+                  >
+                    Change Repository
+                  </button>
 
-            </h1>
+                  <a
+                    href="#knowledge"
+                    className="rounded-xl border border-white/15 px-6 py-3.5 text-sm font-medium text-white transition hover:border-white/30 hover:bg-white/5"
+                  >
+                    Explore Knowledge
+                  </a>
 
+                </div>
 
-            <p className="mt-8 max-w-2xl text-lg leading-8 text-white/55 sm:text-xl">
-              RepoLens turns your repository into a living source of
-              engineering knowledge — keeping documentation, architecture,
-              APIs and development activity aligned.
-            </p>
+              </>
+            ) : (
+              <>
+                <h1 className="max-w-5xl text-5xl font-semibold leading-[1.05] tracking-[-0.04em] text-white sm:text-6xl lg:text-8xl">
 
+                  Engineering knowledge,
 
-            <div className="mt-10 flex flex-wrap gap-4">
+                  <br />
 
-              <button className="rounded-xl bg-[#f5f500] px-6 py-3.5 text-sm font-semibold text-[#05060a] transition hover:scale-[1.02] hover:bg-[#ffff38]">
-                Analyze Repository
-              </button>
+                  <span className="text-[#f5f500]">
+                    synchronized.
+                  </span>
 
-              <a
-                href="#knowledge"
-                className="rounded-xl border border-white/15 px-6 py-3.5 text-sm font-medium text-white transition hover:border-white/30 hover:bg-white/5"
-              >
-                Explore Knowledge
-              </a>
+                </h1>
 
-            </div>
+                <p className="mt-8 max-w-2xl text-lg leading-8 text-white/55 sm:text-xl">
+                  RepoLens turns your repository into a living source of
+                  engineering knowledge — keeping documentation, architecture,
+                  APIs and development activity aligned.
+                </p>
 
+                <div className="mt-10 flex flex-wrap gap-4">
+
+                  <button
+                    onClick={() => setShowRepositorySelector(true)}
+                    className="rounded-xl bg-[#f5f500] px-6 py-3.5 text-sm font-semibold text-[#05060a] transition hover:scale-[1.02] hover:bg-[#ffff38]"
+                  >
+                    Analyze Repository
+                  </button>
+
+                  <a
+                    href="#knowledge"
+                    className="rounded-xl border border-white/15 px-6 py-3.5 text-sm font-medium text-white transition hover:border-white/30 hover:bg-white/5"
+                  >
+                    Explore Knowledge
+                  </a>
+
+                </div>
+
+              </>
+            )}
+
+            {/* Overview Cards */}
 
             <div className="mt-20 grid max-w-4xl gap-4 sm:grid-cols-3">
+
+              {/* Repository */}
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
 
@@ -312,15 +422,22 @@ function Dashboard() {
                 </p>
 
                 <p className="mt-3 text-xl font-medium text-white">
-                  RepoLens
+                  {selectedRepository
+                    ? selectedRepository.repositoryName
+                    : "RepoLens"}
                 </p>
 
                 <p className="mt-2 text-sm text-[#f5f500]">
-                  Connected
+                  {selectedRepository
+                    ? selectedRepository.syncStatus === "DRIFT_DETECTED"
+                      ? "Drift detected"
+                      : "Synchronized"
+                    : "Connected"}
                 </p>
 
               </div>
 
+              {/* Engineering Truth */}
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
 
@@ -329,15 +446,23 @@ function Dashboard() {
                 </p>
 
                 <p className="mt-3 text-3xl font-semibold text-white">
-                  94<span className="text-white/30">/100</span>
+                  {dashboard?.engineeringTruthScore ?? 94}
+                  <span className="text-white/30">/100</span>
                 </p>
 
                 <p className="mt-2 text-sm text-white/40">
-                  Highly synchronized
+                  {selectedRepository
+                    ? dashboard?.engineeringTruthScore >= 90
+                      ? "Highly synchronized"
+                      : dashboard?.engineeringTruthScore >= 80
+                        ? "Needs attention"
+                        : "Significant drift"
+                    : "Highly synchronized"}
                 </p>
 
               </div>
 
+              {/* Last Analysis */}
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
 
@@ -346,11 +471,15 @@ function Dashboard() {
                 </p>
 
                 <p className="mt-3 text-xl font-medium text-white">
-                  8 min ago
+                  {dashboard?.lastAnalysis ?? "8 min ago"}
                 </p>
 
                 <p className="mt-2 text-sm text-[#a98bff]">
-                  All systems healthy
+                  {selectedRepository
+                    ? selectedRepository.syncStatus === "DRIFT_DETECTED"
+                      ? "Review required"
+                      : "All systems healthy"
+                    : "All systems healthy"}
                 </p>
 
               </div>
@@ -360,7 +489,6 @@ function Dashboard() {
           </div>
 
         </section>
-
 
         {/* =========================================================
             SECTION 2 — KNOWLEDGE HEALTH
@@ -385,7 +513,6 @@ function Dashboard() {
 
               </div>
 
-
               <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
 
                 Know what your
@@ -398,7 +525,6 @@ function Dashboard() {
 
               </h2>
 
-
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/50">
                 RepoLens continuously evaluates the health of your engineering
                 knowledge across documentation, architecture, APIs and
@@ -407,11 +533,10 @@ function Dashboard() {
 
             </div>
 
-
             <div className="mt-14 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
 
-
               {/* Engineering Truth */}
+
               <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/20 p-8 backdrop-blur-sm sm:p-10">
 
                 <div
@@ -431,7 +556,7 @@ function Dashboard() {
                   <div className="mt-8 flex items-end gap-3">
 
                     <span className="text-7xl font-semibold tracking-tight text-white sm:text-8xl">
-                      94
+                      {dashboard?.engineeringTruthScore ?? 94}
                     </span>
 
                     <span className="mb-3 text-2xl text-white/25">
@@ -440,13 +565,16 @@ function Dashboard() {
 
                   </div>
 
-
                   <div className="mt-8 h-2 overflow-hidden rounded-full bg-white/10">
 
-                    <div className="h-full w-[94%] rounded-full bg-[#f5f500]" />
+                    <div
+                      className="h-full rounded-full bg-[#f5f500]"
+                      style={{
+                        width: `${dashboard?.engineeringTruthScore ?? 94}%`,
+                      }}
+                    />
 
                   </div>
-
 
                   <div className="mt-5 flex items-center justify-between">
 
@@ -455,7 +583,11 @@ function Dashboard() {
                     </span>
 
                     <span className="text-sm font-medium text-[#f5f500]">
-                      Excellent
+                      {dashboard?.engineeringTruthScore >= 90
+                        ? "Excellent"
+                        : dashboard?.engineeringTruthScore >= 80
+                          ? "Needs Attention"
+                          : "Critical"}
                     </span>
 
                   </div>
@@ -464,8 +596,8 @@ function Dashboard() {
 
               </div>
 
+              {/* Supporting Cards */}
 
-              {/* Supporting cards */}
               <div className="grid gap-4">
 
                 <div className="rounded-3xl border border-white/10 bg-black/20 p-7 backdrop-blur-sm">
@@ -479,24 +611,23 @@ function Dashboard() {
                       </p>
 
                       <p className="mt-3 text-3xl font-semibold text-white">
-                        96%
+                        {dashboard?.documentation?.score ?? 96}%
                       </p>
 
                     </div>
 
                     <span className="rounded-full bg-[#f5f500]/10 px-3 py-1 text-xs font-medium text-[#f5f500]">
-                      Healthy
+                      {dashboard?.documentation?.status ?? "Healthy"}
                     </span>
 
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-white/40">
-                    README and project documentation are aligned with the
-                    current repository.
+                    {dashboard?.documentation?.description ??
+                      "README and project documentation are aligned with the current repository."}
                   </p>
 
                 </div>
-
 
                 <div className="rounded-3xl border border-white/10 bg-black/20 p-7 backdrop-blur-sm">
 
@@ -509,24 +640,23 @@ function Dashboard() {
                       </p>
 
                       <p className="mt-3 text-3xl font-semibold text-white">
-                        91%
+                        {dashboard?.architecture?.score ?? 91}%
                       </p>
 
                     </div>
 
                     <span className="rounded-full bg-[#7c4dff]/10 px-3 py-1 text-xs font-medium text-[#a98bff]">
-                      Strong
+                      {dashboard?.architecture?.status ?? "Strong"}
                     </span>
 
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-white/40">
-                    Repository structure and documented architecture are
-                    largely synchronized.
+                    {dashboard?.architecture?.description ??
+                      "Repository structure and documented architecture are largely synchronized."}
                   </p>
 
                 </div>
-
 
                 <div className="rounded-3xl border border-white/10 bg-black/20 p-7 backdrop-blur-sm">
 
@@ -539,20 +669,20 @@ function Dashboard() {
                       </p>
 
                       <p className="mt-3 text-3xl font-semibold text-white">
-                        88%
+                        {dashboard?.apiKnowledge?.score ?? 88}%
                       </p>
 
                     </div>
 
                     <span className="rounded-full bg-[#3155ff]/10 px-3 py-1 text-xs font-medium text-[#6f8cff]">
-                      Good
+                      {dashboard?.apiKnowledge?.status ?? "Good"}
                     </span>
 
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-white/40">
-                    Most API contracts are documented, with a few areas that
-                    could use additional context.
+                    {dashboard?.apiKnowledge?.description ??
+                      "Most API contracts are documented, with a few areas that could use additional context."}
                   </p>
 
                 </div>
@@ -564,7 +694,6 @@ function Dashboard() {
           </div>
 
         </section>
-
 
         {/* =========================================================
             SECTION 3 — RECENT ACTIVITY
@@ -589,7 +718,6 @@ function Dashboard() {
 
               </div>
 
-
               <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
 
                 See how your
@@ -602,7 +730,6 @@ function Dashboard() {
 
               </h2>
 
-
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/50">
                 Follow the changes that shape your engineering knowledge.
                 RepoLens keeps repository activity connected to the context
@@ -611,8 +738,6 @@ function Dashboard() {
 
             </div>
 
-
-            {/* Timeline */}
             <div className="relative mt-14 overflow-hidden rounded-3xl border border-white/10 bg-black/20 backdrop-blur-sm">
 
               <div className="relative">
@@ -637,188 +762,108 @@ function Dashboard() {
 
                 </div>
 
+                {(dashboard?.activity?.timeline ?? [
+                  {
+                    title: "Documentation updated",
+                    time: "8 minutes ago",
+                    description:
+                      "README.md was synchronized with the latest repository structure.",
+                    reference: "README.md",
+                  },
+                  {
+                    title: "Architecture changed",
+                    time: "32 minutes ago",
+                    description:
+                      "A new layout component was detected in the frontend architecture.",
+                    reference: "src/layouts/",
+                  },
+                  {
+                    title: "API endpoint detected",
+                    time: "1 hour ago",
+                    description:
+                      "A new repository analysis endpoint was identified and added to the knowledge graph.",
+                    reference: "/api/repositories",
+                  },
+                  {
+                    title: "Repository analyzed",
+                    time: "2 hours ago",
+                    description:
+                      "RepoLens completed a full repository synchronization and recalculated the engineering truth score.",
+                    reference: "RepoLens",
+                  },
+                ]).map((item, index, timeline) => (
 
-                {/* Item 1 */}
-                <div className="group border-b border-white/10 px-6 py-7 transition hover:bg-white/[0.025] sm:px-8">
+                  <div
+                    key={`${item.title}-${index}`}
+                    className={`group px-6 py-7 transition hover:bg-white/[0.025] sm:px-8 ${
+                      index !== timeline.length - 1
+                        ? "border-b border-white/10"
+                        : ""
+                    }`}
+                  >
 
-                  <div className="flex gap-5">
+                    <div className="flex gap-5">
 
-                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#f5f500]/30 bg-[#f5f500]/10">
-
-                      <span className="h-2 w-2 rounded-full bg-[#f5f500]" />
-
-                    </div>
-
-
-                    <div className="flex-1">
-
-                      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-
-                        <p className="font-medium text-white">
-                          Documentation updated
-                        </p>
-
-                        <span className="text-xs text-white/30">
-                          8 minutes ago
-                        </span>
-
+                      <div
+                        className={`mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
+                          index === 0
+                            ? "border-[#f5f500]/30 bg-[#f5f500]/10"
+                            : index === 1
+                              ? "border-[#a98bff]/30 bg-[#7c4dff]/10"
+                              : index === 2
+                                ? "border-[#3155ff]/30 bg-[#3155ff]/10"
+                                : "border-white/20 bg-white/5"
+                        }`}
+                      >
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            index === 0
+                              ? "bg-[#f5f500]"
+                              : index === 1
+                                ? "bg-[#a98bff]"
+                                : index === 2
+                                  ? "bg-[#6f8cff]"
+                                  : "bg-white/50"
+                          }`}
+                        />
                       </div>
 
+                      <div className="flex-1">
 
-                      <p className="mt-2 text-sm text-white/40">
-                        README.md was synchronized with the latest repository
-                        structure.
-                      </p>
+                        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
 
+                          <p className="font-medium text-white">
+                            {item.title}
+                          </p>
 
-                      <p className="mt-3 text-xs text-white/25">
-                        README.md
-                      </p>
+                          <span className="text-xs text-white/30">
+                            {item.time}
+                          </span>
+
+                        </div>
+
+                        <p className="mt-2 text-sm text-white/40">
+                          {item.description}
+                        </p>
+
+                        <p className="mt-3 text-xs text-white/25">
+                          {item.reference}
+                        </p>
+
+                      </div>
 
                     </div>
 
                   </div>
 
-                </div>
-
-
-                {/* Item 2 */}
-                <div className="group border-b border-white/10 px-6 py-7 transition hover:bg-white/[0.025] sm:px-8">
-
-                  <div className="flex gap-5">
-
-                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#a98bff]/30 bg-[#7c4dff]/10">
-
-                      <span className="h-2 w-2 rounded-full bg-[#a98bff]" />
-
-                    </div>
-
-
-                    <div className="flex-1">
-
-                      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-
-                        <p className="font-medium text-white">
-                          Architecture changed
-                        </p>
-
-                        <span className="text-xs text-white/30">
-                          32 minutes ago
-                        </span>
-
-                      </div>
-
-
-                      <p className="mt-2 text-sm text-white/40">
-                        A new layout component was detected in the frontend
-                        architecture.
-                      </p>
-
-
-                      <p className="mt-3 text-xs text-white/25">
-                        src/layouts/
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-
-                {/* Item 3 */}
-                <div className="group border-b border-white/10 px-6 py-7 transition hover:bg-white/[0.025] sm:px-8">
-
-                  <div className="flex gap-5">
-
-                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#3155ff]/30 bg-[#3155ff]/10">
-
-                      <span className="h-2 w-2 rounded-full bg-[#6f8cff]" />
-
-                    </div>
-
-
-                    <div className="flex-1">
-
-                      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-
-                        <p className="font-medium text-white">
-                          API endpoint detected
-                        </p>
-
-                        <span className="text-xs text-white/30">
-                          1 hour ago
-                        </span>
-
-                      </div>
-
-
-                      <p className="mt-2 text-sm text-white/40">
-                        A new repository analysis endpoint was identified
-                        and added to the knowledge graph.
-                      </p>
-
-
-                      <p className="mt-3 text-xs text-white/25">
-                        /api/repositories
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-
-                {/* Item 4 */}
-                <div className="group px-6 py-7 transition hover:bg-white/[0.025] sm:px-8">
-
-                  <div className="flex gap-5">
-
-                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5">
-
-                      <span className="h-2 w-2 rounded-full bg-white/50" />
-
-                    </div>
-
-
-                    <div className="flex-1">
-
-                      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-
-                        <p className="font-medium text-white">
-                          Repository analyzed
-                        </p>
-
-                        <span className="text-xs text-white/30">
-                          2 hours ago
-                        </span>
-
-                      </div>
-
-
-                      <p className="mt-2 text-sm text-white/40">
-                        RepoLens completed a full repository synchronization
-                        and recalculated the engineering truth score.
-                      </p>
-
-
-                      <p className="mt-3 text-xs text-white/25">
-                        RepoLens
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
+                ))}
 
               </div>
 
             </div>
 
+            {/* Activity Metrics */}
 
-            {/* Activity metrics */}
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
@@ -828,11 +873,10 @@ function Dashboard() {
                 </p>
 
                 <p className="mt-3 text-3xl font-semibold text-white">
-                  128
+                  {dashboard?.activity?.eventsTracked ?? 128}
                 </p>
 
               </div>
-
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
 
@@ -841,11 +885,10 @@ function Dashboard() {
                 </p>
 
                 <p className="mt-3 text-3xl font-semibold text-white">
-                  24
+                  {dashboard?.activity?.changesToday ?? 24}
                 </p>
 
               </div>
-
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
 
@@ -853,8 +896,14 @@ function Dashboard() {
                   Sync status
                 </p>
 
-                <p className="mt-3 text-xl font-semibold text-[#f5f500]">
-                  Up to date
+                <p
+                  className={`mt-3 text-xl font-semibold ${
+                    selectedRepository?.syncStatus === "DRIFT_DETECTED"
+                      ? "text-[#ff8a8a]"
+                      : "text-[#f5f500]"
+                  }`}
+                >
+                  {dashboard?.activity?.syncStatus ?? "Synchronized"}
                 </p>
 
               </div>
@@ -864,7 +913,6 @@ function Dashboard() {
           </div>
 
         </section>
-
 
         {/* =========================================================
             FOOTER
@@ -886,7 +934,6 @@ function Dashboard() {
 
             </div>
 
-
             <p className="text-xs text-white/25">
               Repository intelligence platform
             </p>
@@ -898,7 +945,7 @@ function Dashboard() {
       </div>
 
     </div>
-  )
+  );
 }
 
-export default Dashboard
+export default Dashboard;

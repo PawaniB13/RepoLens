@@ -1,9 +1,9 @@
-import { Bell, ChevronDown } from 'lucide-react'
+import { Bell, ChevronDown } from "lucide-react";
 
 function DashboardLayout({ children }) {
   return (
     <div className="min-h-screen bg-[#05060a] text-[#f5f5f5] bg-[radial-gradient(circle_at_70%_20%,rgba(88,28,135,0.16),transparent_35%),radial-gradient(circle_at_85%_55%,rgba(30,64,175,0.12),transparent_35%)]">
-
+      
       {/* Navigation */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#05060a]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-10">
@@ -68,7 +68,7 @@ function DashboardLayout({ children }) {
       <main>{children}</main>
 
     </div>
-  )
+  );
 }
 
-export default DashboardLayout
+export default DashboardLayout;

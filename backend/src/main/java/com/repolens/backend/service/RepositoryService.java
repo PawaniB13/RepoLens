@@ -20,18 +20,18 @@ public class RepositoryService {
     }
 
     public List<Repository> getRepositories() {
-        if (repositoryJpaRepository == null) {
-            return List.of(
-                    new Repository(
-                            1L,
-                            "RepoLens",
-                            "https://github.com/PawaniB13/RepoLens"
-                    )
-            );
-        }
-
-        return repositoryJpaRepository.findAll();
+    if (repositoryJpaRepository == null) {
+        return List.of(
+                new Repository(
+                        1L,
+                        "RepoLens",
+                        "https://github.com/PawaniB13/RepoLens"
+                )
+        );
     }
+
+    return repositoryJpaRepository.findAll();
+}
 
     public Repository saveRepository(Repository repository) {
         if (repositoryJpaRepository == null) {

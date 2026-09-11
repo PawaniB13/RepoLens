@@ -11,19 +11,15 @@ public class RepositoryService {
 
     private final RepositoryJpaRepository repositoryJpaRepository;
 
-    // Constructor used by Spring Boot
     public RepositoryService(RepositoryJpaRepository repositoryJpaRepository) {
         this.repositoryJpaRepository = repositoryJpaRepository;
     }
 
-    // No-argument constructor for existing unit tests
     public RepositoryService() {
         this.repositoryJpaRepository = null;
     }
 
     public List<Repository> getRepositories() {
-
-        // Temporary fallback for existing tests
         if (repositoryJpaRepository == null) {
             return List.of(
                     new Repository(
@@ -34,12 +30,18 @@ public class RepositoryService {
             );
         }
 
-        // Fetch repositories from PostgreSQL
         return repositoryJpaRepository.findAll();
     }
 
-    public List<Repository> searchRepositories(String query) {
+    public Repository saveRepository(Repository repository) {
+        if (repositoryJpaRepository == null) {
+            return repository;
+        }
 
+        return repositoryJpaRepository.save(repository);
+    }
+
+    public List<Repository> searchRepositories(String query) {
         if (query == null || query.isBlank()) {
             return List.of();
         }

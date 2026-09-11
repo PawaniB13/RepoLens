@@ -1,10 +1,19 @@
 package com.repolens.backend.service;
 
+import com.repolens.backend.model.RepositoryFile;
 import com.repolens.backend.model.RepositoryStatistics;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class RepositoryStatisticsService {
+
+    private final RepositoryFileService repositoryFileService;
+
+    public RepositoryStatisticsService(RepositoryFileService repositoryFileService) {
+        this.repositoryFileService = repositoryFileService;
+    }
 
     public RepositoryStatistics getStatistics(Long repositoryId) {
 
@@ -12,13 +21,27 @@ public class RepositoryStatisticsService {
             throw new IllegalArgumentException("Repository ID must be positive");
         }
 
+        List<RepositoryFile> files = repositoryFileService.getFiles(repositoryId);
+
+        int totalFiles = files.size();
+
+        int javaFiles = (int) files.stream()
+                .filter(file -> "Java".equalsIgnoreCase(file.getFileType()))
+                .count();
+
+        int javascriptFiles = (int) files.stream()
+                .filter(file -> "JavaScript".equalsIgnoreCase(file.getFileType()))
+                .count();
+
+        int otherFiles = totalFiles - javaFiles - javascriptFiles;
+
         return new RepositoryStatistics(
                 repositoryId,
                 "RepoLens",
-                10,
-                5,
-                3,
-                2
+                totalFiles,
+                javaFiles,
+                javascriptFiles,
+                otherFiles
         );
     }
 }

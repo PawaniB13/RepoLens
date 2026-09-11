@@ -2,6 +2,7 @@ package com.repolens.backend;
 
 import com.repolens.backend.controller.RepositoryStatisticsController;
 import com.repolens.backend.model.RepositoryStatistics;
+import com.repolens.backend.service.RepositoryFileService;
 import com.repolens.backend.service.RepositoryStatisticsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +13,10 @@ class RepositoryStatisticsControllerTest {
 
     @Test
     void shouldGetRepositoryStatistics() {
-        RepositoryStatisticsService service = new RepositoryStatisticsService();
+        RepositoryFileService fileService = new RepositoryFileService();
+        RepositoryStatisticsService service =
+                new RepositoryStatisticsService(fileService);
+
         RepositoryStatisticsController controller =
                 new RepositoryStatisticsController(service);
 
@@ -23,15 +27,18 @@ class RepositoryStatisticsControllerTest {
         assertNotNull(response.getBody());
         assertEquals(1L, response.getBody().getRepositoryId());
         assertEquals("RepoLens", response.getBody().getRepositoryName());
-        assertEquals(10, response.getBody().getTotalFiles());
-        assertEquals(5, response.getBody().getJavaFiles());
-        assertEquals(3, response.getBody().getJavascriptFiles());
-        assertEquals(2, response.getBody().getOtherFiles());
+        assertEquals(3, response.getBody().getTotalFiles());
+        assertEquals(3, response.getBody().getJavaFiles());
+        assertEquals(0, response.getBody().getJavascriptFiles());
+        assertEquals(0, response.getBody().getOtherFiles());
     }
 
     @Test
     void shouldRejectInvalidRepositoryId() {
-        RepositoryStatisticsService service = new RepositoryStatisticsService();
+        RepositoryFileService fileService = new RepositoryFileService();
+        RepositoryStatisticsService service =
+                new RepositoryStatisticsService(fileService);
+
         RepositoryStatisticsController controller =
                 new RepositoryStatisticsController(service);
 

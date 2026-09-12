@@ -23,10 +23,14 @@ public class RepositoryController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Repository> getRepository(@PathVariable Long id) {
+    public ResponseEntity<Repository> getRepository(
+            @PathVariable Long id) {
+
         return repositoryService.getRepositories()
                 .stream()
-                .filter(repository -> repository.getId().equals(id))
+                .filter(repository ->
+                        repository.getId() != null
+                                && repository.getId().equals(id))
                 .findFirst()
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());

@@ -1,6 +1,7 @@
 package com.repolens.backend.service;
 
 import com.repolens.backend.model.Repository;
+import com.repolens.backend.repository.RepositoryJpaRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -8,14 +9,19 @@ import java.util.List;
 @Service
 public class RepositoryService {
 
+    private final RepositoryJpaRepository repositoryJpaRepository;
+
+    public RepositoryService(
+            RepositoryJpaRepository repositoryJpaRepository) {
+        this.repositoryJpaRepository = repositoryJpaRepository;
+    }
+
     public List<Repository> getRepositories() {
-        return List.of(
-                new Repository(
-                        1L,
-                        "RepoLens",
-                        "https://github.com/PawaniB13/RepoLens"
-                )
-        );
+        return repositoryJpaRepository.findAll();
+    }
+
+    public Repository saveRepository(Repository repository) {
+        return repositoryJpaRepository.save(repository);
     }
 
     public List<Repository> searchRepositories(String query) {
@@ -25,12 +31,13 @@ public class RepositoryService {
 
         String normalizedQuery = query.trim().toLowerCase();
 
-        return getRepositories().stream()
+        return getRepositories()
+                .stream()
                 .filter(repository ->
-                        repository.getName()
+                        repository.getName() != null
+                                && repository.getName()
                                 .toLowerCase()
                                 .contains(normalizedQuery))
                 .toList();
     }
 }
-

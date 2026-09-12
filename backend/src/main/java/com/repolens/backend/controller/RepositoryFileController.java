@@ -13,7 +13,8 @@ public class RepositoryFileController {
 
     private final RepositoryFileService repositoryFileService;
 
-    public RepositoryFileController(RepositoryFileService repositoryFileService) {
+    public RepositoryFileController(
+            RepositoryFileService repositoryFileService) {
         this.repositoryFileService = repositoryFileService;
     }
 
@@ -21,18 +22,14 @@ public class RepositoryFileController {
     public ResponseEntity<List<RepositoryFile>> getFiles(
             @PathVariable Long repositoryId) {
 
-        validateRepositoryId(repositoryId);
-
-        return ResponseEntity.ok(
-                repositoryFileService.getFiles(repositoryId)
-        );
-    }
-
-    private void validateRepositoryId(Long repositoryId) {
         if (repositoryId == null || repositoryId <= 0) {
             throw new IllegalArgumentException(
                     "Repository ID must be positive"
             );
         }
+
+        return ResponseEntity.ok(
+                repositoryFileService.getFiles(repositoryId)
+        );
     }
 }

@@ -1,13 +1,11 @@
 package com.repolens.backend.controller;
 
+import com.repolens.backend.dto.GitHubImportRequest;
 import com.repolens.backend.model.Repository;
+import com.repolens.backend.service.GitHubService;
 import com.repolens.backend.service.RepositoryService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -16,9 +14,13 @@ import java.util.List;
 public class RepositoryController {
 
     private final RepositoryService repositoryService;
+    private final GitHubService gitHubService;
 
-    public RepositoryController(RepositoryService repositoryService) {
+    public RepositoryController(
+            RepositoryService repositoryService,
+            GitHubService gitHubService) {
         this.repositoryService = repositoryService;
+        this.gitHubService = gitHubService;
     }
 
     @GetMapping
@@ -39,7 +41,33 @@ public class RepositoryController {
     @GetMapping("/search")
     public List<Repository> searchRepositories(
             @RequestParam String query) {
-
         return repositoryService.searchRepositories(query);
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<?> importRepository(
+            @RequestBody GitHubImportRequest request) {
+
+        if (request.getUrl() == null || request.getUrl().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body("GitHub URL is required");
+        }
+
+        if (!request.getUrl().startsWith("https://github.com/")) {
+            return ResponseEntity.badRequest()
+                    .body("Only GitHub URLs are supported");
+        }
+
+        try {
+            Repository repository =
+                    gitHubService.importFromGitHub(request.getUrl());
+
+            return ResponseEntity.ok(repository);
+
+        } catch (Exception exception) {
+            return ResponseEntity.badRequest()
+                    .body("Unable to import repository: "
+                            + exception.getMessage());
+        }
     }
 }

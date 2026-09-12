@@ -22,14 +22,21 @@ public class RepositoryFileController {
     public ResponseEntity<List<RepositoryFile>> getFiles(
             @PathVariable Long repositoryId) {
 
-        if (repositoryId == null || repositoryId <= 0) {
-            throw new IllegalArgumentException(
-                    "Repository ID must be positive"
-            );
-        }
-
         return ResponseEntity.ok(
                 repositoryFileService.getFiles(repositoryId)
+        );
+    }
+
+    @GetMapping("/{repositoryId}/files/content")
+    public ResponseEntity<String> getFileContent(
+            @PathVariable Long repositoryId,
+            @RequestParam String path) {
+
+        return ResponseEntity.ok(
+                repositoryFileService.getFileContent(
+                        repositoryId,
+                        path
+                )
         );
     }
 }

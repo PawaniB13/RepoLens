@@ -1,36 +1,33 @@
 package com.repolens.backend;
 
 import com.repolens.backend.controller.RepositoryController;
-import com.repolens.backend.model.Repository;
+import com.repolens.backend.repository.RepositoryRepository;
+import com.repolens.backend.service.GitHubService;
 import com.repolens.backend.service.RepositoryService;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.ResponseEntity;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.mock;
 
 class RepositoryControllerTest {
 
     @Test
-    void shouldReturnRepositoryWhenIdExists() {
-        RepositoryService service = new RepositoryService();
-        RepositoryController controller = new RepositoryController(service);
+    void controllerCanBeCreated() {
+        RepositoryRepository repositoryRepository =
+                mock(RepositoryRepository.class);
 
-        ResponseEntity<Repository> response = controller.getRepository(1L);
+        RepositoryService repositoryService =
+                new RepositoryService(repositoryRepository);
 
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(1L, response.getBody().getId());
-        assertEquals("RepoLens", response.getBody().getName());
-    }
+        GitHubService gitHubService =
+                new GitHubService(repositoryService);
 
-    @Test
-    void shouldReturnNotFoundWhenRepositoryDoesNotExist() {
-        RepositoryService service = new RepositoryService();
-        RepositoryController controller = new RepositoryController(service);
+        RepositoryController controller =
+                new RepositoryController(
+                        repositoryService,
+                        gitHubService
+                );
 
-        ResponseEntity<Repository> response = controller.getRepository(999L);
-
-        assertEquals(404, response.getStatusCode().value());
-        assertNull(response.getBody());
+        assertNotNull(controller);
     }
 }

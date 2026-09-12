@@ -4,9 +4,13 @@ import com.repolens.backend.dto.GitHubImportRequest;
 import com.repolens.backend.model.Repository;
 import com.repolens.backend.service.GitHubService;
 import com.repolens.backend.service.RepositoryService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -17,16 +21,10 @@ public class RepositoryController {
     private final RepositoryService repositoryService;
     private final GitHubService gitHubService;
 
-    public RepositoryController(RepositoryService repositoryService) {
-        this.repositoryService = repositoryService;
-        this.gitHubService = null;
-    }
-
-    @Autowired
     public RepositoryController(
             RepositoryService repositoryService,
-            GitHubService gitHubService) {
-
+            GitHubService gitHubService
+    ) {
         this.repositoryService = repositoryService;
         this.gitHubService = gitHubService;
     }
@@ -37,39 +35,35 @@ public class RepositoryController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Repository> getRepository(
-            @PathVariable Long id) {
-
+    public Repository getRepositoryById(@PathVariable Long id) {
         return repositoryService.getRepositories()
                 .stream()
-                .filter(repository ->
-                        repository.getId().equals(id))
+                .filter(repository -> repository.getId().equals(id))
                 .findFirst()
-                .map(ResponseEntity::ok)
-                .orElseGet(() ->
-                        ResponseEntity.notFound().build());
+                .orElseThrow(() ->
+                        new RuntimeException("Repository not found: " + id)
+                );
     }
 
     @GetMapping("/search")
     public List<Repository> searchRepositories(
-            @RequestParam String query) {
-
+            @RequestParam(required = false) String query
+    ) {
         return repositoryService.searchRepositories(query);
     }
 
     @PostMapping("/import")
-    public ResponseEntity<Repository> importRepository(
-            @RequestBody GitHubImportRequest request) {
+public Repository importRepository(
+        @RequestBody GitHubImportRequest request
+) {
+    String[] parts = request.getRepo().split("/", 2);
 
-        if (gitHubService == null) {
-            return ResponseEntity.internalServerError().build();
-        }
-
-        Repository repository = gitHubService.importRepository(
-                request.getOwner(),
-                request.getRepo()
+    if (parts.length != 2) {
+        throw new IllegalArgumentException(
+                "Repository must use owner/name format"
         );
-
-        return ResponseEntity.ok(repository);
     }
+
+    return gitHubService.importRepository(parts[0], parts[1]);
+}
 }

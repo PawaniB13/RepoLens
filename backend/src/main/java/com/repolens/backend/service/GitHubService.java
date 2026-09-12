@@ -5,6 +5,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.core.ParameterizedTypeReference;
 
 import java.util.Map;
 
@@ -38,9 +39,9 @@ public class GitHubService {
         String repoName = parts[1];
 
         Map<String, Object> githubRepository = restClient.get()
-                .uri("/repos/{owner}/{repo}", owner, repoName)
-                .retrieve()
-                .body(Map.class);
+        .uri("/repos/{owner}/{repo}", owner, repoName)
+        .retrieve()
+        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 
         if (githubRepository == null) {
             throw new IllegalArgumentException("GitHub repository not found");

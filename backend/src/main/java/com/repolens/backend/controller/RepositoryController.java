@@ -6,6 +6,7 @@ import com.repolens.backend.service.GitHubService;
 import com.repolens.backend.service.RepositoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -14,14 +15,20 @@ import java.util.List;
 public class RepositoryController {
 
     private final RepositoryService repositoryService;
-    private final GitHubService gitHubService;
+private final GitHubService gitHubService;
 
-    public RepositoryController(
-            RepositoryService repositoryService,
-            GitHubService gitHubService) {
-        this.repositoryService = repositoryService;
-        this.gitHubService = gitHubService;
-    }
+public RepositoryController(RepositoryService repositoryService) {
+    this.repositoryService = repositoryService;
+    this.gitHubService = null;
+}
+
+@Autowired
+public RepositoryController(
+        RepositoryService repositoryService,
+        GitHubService gitHubService) {
+    this.repositoryService = repositoryService;
+    this.gitHubService = gitHubService;
+}
 
     @GetMapping
     public List<Repository> getRepositories() {

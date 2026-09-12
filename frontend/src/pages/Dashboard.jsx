@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { getRepositories } from "../services/repositoryService";
+import { getLatestAnalysis } from "../services/analysisService";
+import MermaidDiagram from "../components/MermaidDiagram";
 
 function Dashboard() {
   const [repositories, setRepositories] = useState([]);
   const [selectedRepository, setSelectedRepository] = useState(null);
   const [showRepositorySelector, setShowRepositorySelector] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [reviewedSuggestions, setReviewedSuggestions] = useState({});
 
   useEffect(() => {
     const loadRepositories = async () => {
@@ -15,17 +19,35 @@ function Dashboard() {
     loadRepositories();
   }, []);
 
+  useEffect(() => {
+    const loadAnalysis = async () => {
+      if (!selectedRepository) {
+        setAnalysis(null);
+        return;
+      }
+
+      const data = await getLatestAnalysis(
+        selectedRepository.repositoryId
+      );
+
+      setAnalysis(data);
+    };
+
+    loadAnalysis();
+  }, [selectedRepository]);
+
   const dashboard = selectedRepository?.dashboard;
+  const driftAnalysis = analysis?.driftAnalysis;
+  const suggestions = analysis?.suggestedUpdates ?? [];
+  const hasAnalysis = analysis !== null;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050509] text-white">
-
       {/* =========================================================
           GLOBAL BACKGROUND
       ========================================================= */}
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-
         <div
           className="absolute inset-0"
           style={{
@@ -205,7 +227,6 @@ function Dashboard() {
             `,
           }}
         />
-
       </div>
 
       {/* =========================================================
@@ -213,20 +234,15 @@ function Dashboard() {
       ========================================================= */}
 
       <div className="relative z-10">
-
         {/* =========================================================
             REPOSITORY SELECTOR
         ========================================================= */}
 
         {showRepositorySelector && (
           <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-6 pt-[110px] pb-8 backdrop-blur-md">
-
             <div className="w-full max-w-3xl rounded-3xl border border-white/10 bg-[#0b0b10] p-6 shadow-2xl sm:p-8">
-
               <div className="flex items-start justify-between gap-6">
-
                 <div>
-
                   <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#f5f500]">
                     Repository Selection
                   </p>
@@ -239,7 +255,6 @@ function Dashboard() {
                     Choose a connected GitHub repository to view its engineering
                     knowledge and synchronization state.
                   </p>
-
                 </div>
 
                 <button
@@ -248,22 +263,16 @@ function Dashboard() {
                 >
                   Close
                 </button>
-
               </div>
 
               <div className="mt-8 space-y-3">
-
                 {repositories.map((repository) => (
-
                   <div
                     key={repository.repositoryId}
                     className="group rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-[#f5f500]/40 hover:bg-white/[0.04]"
                   >
-
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-
                       <div className="min-w-0">
-
                         <h3 className="text-lg font-medium text-white">
                           {repository.repositoryName}
                         </h3>
@@ -273,20 +282,15 @@ function Dashboard() {
                         </p>
 
                         <div className="mt-3 flex flex-wrap gap-2">
-
                           {repository.mainTechnologies.map((technology) => (
-
                             <span
                               key={technology}
                               className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-white/45"
                             >
                               {technology}
                             </span>
-
                           ))}
-
                         </div>
-
                       </div>
 
                       <button
@@ -298,17 +302,11 @@ function Dashboard() {
                       >
                         Select
                       </button>
-
                     </div>
-
                   </div>
-
                 ))}
-
               </div>
-
             </div>
-
           </div>
         )}
 
@@ -320,11 +318,8 @@ function Dashboard() {
           id="overview"
           className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-7xl items-center px-6 py-24 lg:px-10"
         >
-
           <div className="w-full">
-
             <div className="mb-8 flex items-center gap-3">
-
               <span className="h-2 w-2 rounded-full bg-[#f5f500]" />
 
               <span className="text-sm font-medium uppercase tracking-[0.2em] text-white/50">
@@ -332,7 +327,6 @@ function Dashboard() {
                   ? "Repository Intelligence"
                   : "Engineering Intelligence"}
               </span>
-
             </div>
 
             {selectedRepository ? (
@@ -350,7 +344,6 @@ function Dashboard() {
                 </p>
 
                 <div className="mt-10 flex flex-wrap gap-4">
-
                   <button
                     onClick={() => setShowRepositorySelector(true)}
                     className="rounded-xl bg-[#f5f500] px-6 py-3.5 text-sm font-semibold text-[#05060a] transition hover:scale-[1.02] hover:bg-[#ffff38]"
@@ -364,22 +357,14 @@ function Dashboard() {
                   >
                     Explore Knowledge
                   </a>
-
                 </div>
-
               </>
             ) : (
               <>
                 <h1 className="max-w-5xl text-5xl font-semibold leading-[1.05] tracking-[-0.04em] text-white sm:text-6xl lg:text-8xl">
-
                   Engineering knowledge,
-
                   <br />
-
-                  <span className="text-[#f5f500]">
-                    synchronized.
-                  </span>
-
+                  <span className="text-[#f5f500]">synchronized.</span>
                 </h1>
 
                 <p className="mt-8 max-w-2xl text-lg leading-8 text-white/55 sm:text-xl">
@@ -389,7 +374,6 @@ function Dashboard() {
                 </p>
 
                 <div className="mt-10 flex flex-wrap gap-4">
-
                   <button
                     onClick={() => setShowRepositorySelector(true)}
                     className="rounded-xl bg-[#f5f500] px-6 py-3.5 text-sm font-semibold text-[#05060a] transition hover:scale-[1.02] hover:bg-[#ffff38]"
@@ -403,23 +387,15 @@ function Dashboard() {
                   >
                     Explore Knowledge
                   </a>
-
                 </div>
-
               </>
             )}
 
             {/* Overview Cards */}
 
             <div className="mt-20 grid max-w-4xl gap-4 sm:grid-cols-3">
-
-              {/* Repository */}
-
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
-
-                <p className="text-sm text-white/40">
-                  Repository
-                </p>
+                <p className="text-sm text-white/40">Repository</p>
 
                 <p className="mt-3 text-xl font-medium text-white">
                   {selectedRepository
@@ -434,16 +410,10 @@ function Dashboard() {
                       : "Synchronized"
                     : "Connected"}
                 </p>
-
               </div>
 
-              {/* Engineering Truth */}
-
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
-
-                <p className="text-sm text-white/40">
-                  Engineering Truth
-                </p>
+                <p className="text-sm text-white/40">Engineering Truth</p>
 
                 <p className="mt-3 text-3xl font-semibold text-white">
                   {dashboard?.engineeringTruthScore ?? 94}
@@ -459,16 +429,10 @@ function Dashboard() {
                         : "Significant drift"
                     : "Highly synchronized"}
                 </p>
-
               </div>
 
-              {/* Last Analysis */}
-
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
-
-                <p className="text-sm text-white/40">
-                  Last Analysis
-                </p>
+                <p className="text-sm text-white/40">Last Analysis</p>
 
                 <p className="mt-3 text-xl font-medium text-white">
                   {dashboard?.lastAnalysis ?? "8 min ago"}
@@ -481,13 +445,9 @@ function Dashboard() {
                       : "All systems healthy"
                     : "All systems healthy"}
                 </p>
-
               </div>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =========================================================
@@ -498,31 +458,20 @@ function Dashboard() {
           id="knowledge"
           className="relative border-t border-white/10"
         >
-
           <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
-
             <div className="max-w-3xl">
-
               <div className="mb-6 flex items-center gap-3">
-
                 <span className="h-2 w-2 rounded-full bg-[#a98bff]" />
 
                 <span className="text-sm font-medium uppercase tracking-[0.2em] text-white/40">
                   Knowledge Health
                 </span>
-
               </div>
 
               <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
-
                 Know what your
-
                 <br />
-
-                <span className="text-white/40">
-                  code knows.
-                </span>
-
+                <span className="text-white/40">code knows.</span>
               </h2>
 
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/50">
@@ -530,15 +479,10 @@ function Dashboard() {
                 knowledge across documentation, architecture, APIs and
                 repository structure.
               </p>
-
             </div>
 
             <div className="mt-14 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-
-              {/* Engineering Truth */}
-
               <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/20 p-8 backdrop-blur-sm sm:p-10">
-
                 <div
                   className="pointer-events-none absolute right-[-120px] top-[-120px] h-[360px] w-[360px] rounded-full blur-[120px]"
                   style={{
@@ -548,36 +492,28 @@ function Dashboard() {
                 />
 
                 <div className="relative">
-
                   <p className="text-sm text-white/40">
                     Engineering Truth Score
                   </p>
 
                   <div className="mt-8 flex items-end gap-3">
-
                     <span className="text-7xl font-semibold tracking-tight text-white sm:text-8xl">
                       {dashboard?.engineeringTruthScore ?? 94}
                     </span>
 
-                    <span className="mb-3 text-2xl text-white/25">
-                      /100
-                    </span>
-
+                    <span className="mb-3 text-2xl text-white/25">/100</span>
                   </div>
 
                   <div className="mt-8 h-2 overflow-hidden rounded-full bg-white/10">
-
                     <div
                       className="h-full rounded-full bg-[#f5f500]"
                       style={{
                         width: `${dashboard?.engineeringTruthScore ?? 94}%`,
                       }}
                     />
-
                   </div>
 
                   <div className="mt-5 flex items-center justify-between">
-
                     <span className="text-sm text-white/40">
                       Knowledge synchronization
                     </span>
@@ -589,145 +525,390 @@ function Dashboard() {
                           ? "Needs Attention"
                           : "Critical"}
                     </span>
-
                   </div>
-
                 </div>
-
               </div>
 
-              {/* Supporting Cards */}
-
               <div className="grid gap-4">
-
                 <div className="rounded-3xl border border-white/10 bg-black/20 p-7 backdrop-blur-sm">
-
                   <div className="flex items-start justify-between">
-
                     <div>
-
-                      <p className="text-sm text-white/40">
-                        Documentation
-                      </p>
+                      <p className="text-sm text-white/40">Documentation</p>
 
                       <p className="mt-3 text-3xl font-semibold text-white">
                         {dashboard?.documentation?.score ?? 96}%
                       </p>
-
                     </div>
 
                     <span className="rounded-full bg-[#f5f500]/10 px-3 py-1 text-xs font-medium text-[#f5f500]">
                       {dashboard?.documentation?.status ?? "Healthy"}
                     </span>
-
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-white/40">
                     {dashboard?.documentation?.description ??
                       "README and project documentation are aligned with the current repository."}
                   </p>
-
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-black/20 p-7 backdrop-blur-sm">
-
                   <div className="flex items-start justify-between">
-
                     <div>
-
-                      <p className="text-sm text-white/40">
-                        Architecture
-                      </p>
+                      <p className="text-sm text-white/40">Architecture</p>
 
                       <p className="mt-3 text-3xl font-semibold text-white">
                         {dashboard?.architecture?.score ?? 91}%
                       </p>
-
                     </div>
 
                     <span className="rounded-full bg-[#7c4dff]/10 px-3 py-1 text-xs font-medium text-[#a98bff]">
                       {dashboard?.architecture?.status ?? "Strong"}
                     </span>
-
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-white/40">
                     {dashboard?.architecture?.description ??
                       "Repository structure and documented architecture are largely synchronized."}
                   </p>
-
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-black/20 p-7 backdrop-blur-sm">
-
                   <div className="flex items-start justify-between">
-
                     <div>
-
-                      <p className="text-sm text-white/40">
-                        API Knowledge
-                      </p>
+                      <p className="text-sm text-white/40">API Knowledge</p>
 
                       <p className="mt-3 text-3xl font-semibold text-white">
                         {dashboard?.apiKnowledge?.score ?? 88}%
                       </p>
-
                     </div>
 
                     <span className="rounded-full bg-[#3155ff]/10 px-3 py-1 text-xs font-medium text-[#6f8cff]">
                       {dashboard?.apiKnowledge?.status ?? "Good"}
                     </span>
-
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-white/40">
                     {dashboard?.apiKnowledge?.description ??
                       "Most API contracts are documented, with a few areas that could use additional context."}
                   </p>
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =========================================================
-            SECTION 3 — RECENT ACTIVITY
+            SECTION 3 — KNOWLEDGE DRIFT
+        ========================================================= */}
+
+        <section
+          id="drift"
+          className="relative border-t border-white/10"
+        >
+          <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
+            <div className="max-w-3xl">
+              <div className="mb-6 flex items-center gap-3">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    hasAnalysis && driftAnalysis?.driftDetected
+                      ? "bg-[#ff557f]"
+                      : "bg-[#6f8cff]"
+                  }`}
+                />
+
+                <span className="text-sm font-medium uppercase tracking-[0.2em] text-white/40">
+                  Knowledge Drift
+                </span>
+              </div>
+
+              <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
+                {hasAnalysis && driftAnalysis?.driftDetected ? (
+                  <>
+                    Your documentation
+                    <br />
+                    <span className="text-white/40">
+                      needs attention.
+                    </span>
+                  </>
+                ) : hasAnalysis ? (
+                  <>
+                    Your engineering knowledge
+                    <br />
+                    <span className="text-white/40">
+                      is synchronized.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    No drift analysis
+                    <br />
+                    <span className="text-white/40">
+                      available yet.
+                    </span>
+                  </>
+                )}
+              </h2>
+
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-white/50">
+                {hasAnalysis && driftAnalysis?.driftDetected
+                  ? "RepoLens detected changes in the repository that are not fully reflected in the current engineering knowledge."
+                  : hasAnalysis
+                    ? "RepoLens completed the latest analysis and did not identify documentation drift requiring review."
+                    : "This repository does not have a completed drift analysis yet. Analyze the repository to compare its implementation with its engineering knowledge."}
+              </p>
+            </div>
+
+            {/* =====================================================
+                DRIFT SUMMARY
+            ===================================================== */}
+
+            {driftAnalysis?.driftDetected && (
+              <div className="mt-14 rounded-3xl border border-[#ff557f]/20 bg-black/20 p-8 backdrop-blur-sm sm:p-10">
+                <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="max-w-3xl">
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-full border border-[#ff557f]/30 bg-[#ff557f]/10 px-3 py-1 text-xs font-medium text-[#ff7f9d]">
+                        Drift detected
+                      </span>
+
+                      <span className="text-xs text-white/30">
+                        {Math.round(
+                          (driftAnalysis.confidence ?? 0) * 100
+                        )}
+                        % confidence
+                      </span>
+                    </div>
+
+                    <h3 className="mt-6 text-2xl font-semibold text-white">
+                      Engineering knowledge is out of sync
+                    </h3>
+
+                    <p className="mt-4 text-sm leading-7 text-white/45">
+                      {driftAnalysis.overallReason}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0">
+                    <p className="text-xs uppercase tracking-[0.15em] text-white/30">
+                      Affected artifacts
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {driftAnalysis.affectedArtifacts?.map((artifact) => (
+                        <span
+                          key={artifact}
+                          className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white/60"
+                        >
+                          {artifact}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =====================================================
+                NO ANALYSIS STATE
+            ===================================================== */}
+
+            {!hasAnalysis && selectedRepository && (
+              <div className="mt-14 rounded-3xl border border-white/10 bg-black/20 p-8 backdrop-blur-sm sm:p-10">
+                <div className="flex flex-col items-start gap-5">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#6f8cff]/20 bg-[#6f8cff]/10">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#6f8cff]" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-2xl font-semibold text-white">
+                      No recent drift analysis
+                    </h3>
+
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
+                      RepoLens has not received a completed analysis for{" "}
+                      <span className="text-white/70">
+                        {selectedRepository.repositoryName}
+                      </span>{" "}
+                      yet. Once an analysis is available, detected drift and
+                      suggested documentation updates will appear here.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =====================================================
+                ANALYSIS WITH NO DRIFT
+            ===================================================== */}
+
+            {hasAnalysis && driftAnalysis && !driftAnalysis.driftDetected && (
+              <div className="mt-14 rounded-3xl border border-[#6f8cff]/20 bg-black/20 p-8 backdrop-blur-sm sm:p-10">
+                <div className="flex flex-col items-start gap-5">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#f5f500]/20 bg-[#f5f500]/10">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#f5f500]" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-2xl font-semibold text-white">
+                      No documentation drift detected
+                    </h3>
+
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-white/45">
+                      The latest repository analysis did not identify any
+                      documentation or architecture changes requiring review.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =====================================================
+                SUGGESTED UPDATES
+            ===================================================== */}
+
+            {suggestions.length > 0 && (
+              <div className="mt-6 grid gap-4">
+                {suggestions.map((suggestion) => (
+                  <div
+                    key={suggestion.suggestionId}
+                    className="rounded-3xl border border-white/10 bg-black/20 p-7 backdrop-blur-sm transition hover:border-white/20"
+                  >
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="rounded-full bg-[#f5f500]/10 px-3 py-1 text-xs font-medium text-[#f5f500]">
+                            {suggestion.artifactType}
+                          </span>
+
+                          <span className="text-xs text-white/30">
+                            {suggestion.artifactPath}
+                          </span>
+                        </div>
+
+                        <h3 className="mt-4 text-xl font-medium text-white">
+                          {suggestion.section || "Suggested update"}
+                        </h3>
+
+                        <p className="mt-3 max-w-3xl text-sm leading-6 text-white/45">
+                          {suggestion.explanation}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0">
+                        <p className="text-xs text-white/30">Confidence</p>
+
+                        <p className="mt-2 text-2xl font-semibold text-white">
+                          {Math.round(
+                            (suggestion.confidence ?? 0) * 100
+                          )}
+                          %
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Current vs Suggested */}
+
+                    <div className="mt-7 grid gap-4 lg:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                        <p className="text-xs uppercase tracking-[0.15em] text-white/25">
+                          Current
+                        </p>
+
+                        <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-white/45">
+                          {suggestion.currentContent}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-[#f5f500]/15 bg-[#f5f500]/[0.02] p-5">
+                        <p className="text-xs uppercase tracking-[0.15em] text-[#f5f500]/60">
+                          Suggested
+                        </p>
+
+                        {suggestion.artifactType === "ARCHITECTURE" &&
+                        suggestion.suggestedContent?.includes(
+                          "```mermaid"
+                        ) ? (
+                          <div className="mt-4">
+                            <MermaidDiagram
+                              chart={suggestion.suggestedContent
+                                .replace(/^```mermaid\s*/, "")
+                                .replace(/\s*```$/, "")
+                                .trim()}
+                            />
+                          </div>
+                        ) : (
+                          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-white/70">
+                            {suggestion.suggestedContent}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Human Review */}
+
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-5">
+                      <span className="text-xs text-white/30">
+                        {reviewedSuggestions[suggestion.suggestionId] ||
+                          "Awaiting review"}
+                      </span>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() =>
+                            setReviewedSuggestions((prev) => ({
+                              ...prev,
+                              [suggestion.suggestionId]: "Rejected",
+                            }))
+                          }
+                          className="rounded-xl border border-white/10 px-4 py-2 text-xs font-medium text-white/50 transition hover:border-white/20 hover:text-white"
+                        >
+                          Reject
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            setReviewedSuggestions((prev) => ({
+                              ...prev,
+                              [suggestion.suggestionId]: "Approved",
+                            }))
+                          }
+                          className="rounded-xl bg-[#f5f500] px-4 py-2 text-xs font-semibold text-[#05060a] transition hover:bg-[#ffff38]"
+                        >
+                          Approve
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* =========================================================
+            SECTION 4 — RECENT ACTIVITY
         ========================================================= */}
 
         <section
           id="activity"
           className="relative border-t border-white/10"
         >
-
           <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
-
             <div className="max-w-3xl">
-
               <div className="mb-6 flex items-center gap-3">
-
                 <span className="h-2 w-2 rounded-full bg-[#6f8cff]" />
 
                 <span className="text-sm font-medium uppercase tracking-[0.2em] text-white/40">
                   Recent Activity
                 </span>
-
               </div>
 
               <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
-
                 See how your
-
                 <br />
-
                 <span className="text-white/40">
                   repository evolves.
                 </span>
-
               </h2>
 
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/50">
@@ -735,17 +916,12 @@ function Dashboard() {
                 RepoLens keeps repository activity connected to the context
                 your team depends on.
               </p>
-
             </div>
 
             <div className="relative mt-14 overflow-hidden rounded-3xl border border-white/10 bg-black/20 backdrop-blur-sm">
-
               <div className="relative">
-
                 <div className="flex items-center justify-between border-b border-white/10 px-6 py-5 sm:px-8">
-
                   <div>
-
                     <p className="text-sm font-medium text-white">
                       Repository Timeline
                     </p>
@@ -753,46 +929,45 @@ function Dashboard() {
                     <p className="mt-1 text-xs text-white/35">
                       Latest engineering events
                     </p>
-
                   </div>
 
                   <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/40">
                     Live
                   </span>
-
                 </div>
 
-                {(dashboard?.activity?.timeline ?? [
-                  {
-                    title: "Documentation updated",
-                    time: "8 minutes ago",
-                    description:
-                      "README.md was synchronized with the latest repository structure.",
-                    reference: "README.md",
-                  },
-                  {
-                    title: "Architecture changed",
-                    time: "32 minutes ago",
-                    description:
-                      "A new layout component was detected in the frontend architecture.",
-                    reference: "src/layouts/",
-                  },
-                  {
-                    title: "API endpoint detected",
-                    time: "1 hour ago",
-                    description:
-                      "A new repository analysis endpoint was identified and added to the knowledge graph.",
-                    reference: "/api/repositories",
-                  },
-                  {
-                    title: "Repository analyzed",
-                    time: "2 hours ago",
-                    description:
-                      "RepoLens completed a full repository synchronization and recalculated the engineering truth score.",
-                    reference: "RepoLens",
-                  },
-                ]).map((item, index, timeline) => (
-
+                {(
+                  dashboard?.activity?.timeline ?? [
+                    {
+                      title: "Documentation updated",
+                      time: "8 minutes ago",
+                      description:
+                        "README.md was synchronized with the latest repository structure.",
+                      reference: "README.md",
+                    },
+                    {
+                      title: "Architecture changed",
+                      time: "32 minutes ago",
+                      description:
+                        "A new layout component was detected in the frontend architecture.",
+                      reference: "src/layouts/",
+                    },
+                    {
+                      title: "API endpoint detected",
+                      time: "1 hour ago",
+                      description:
+                        "A new repository analysis endpoint was identified and added to the knowledge graph.",
+                      reference: "/api/repositories",
+                    },
+                    {
+                      title: "Repository analyzed",
+                      time: "2 hours ago",
+                      description:
+                        "RepoLens completed a full repository synchronization and recalculated the engineering truth score.",
+                      reference: "RepoLens",
+                    },
+                  ]
+                ).map((item, index, timeline) => (
                   <div
                     key={`${item.title}-${index}`}
                     className={`group px-6 py-7 transition hover:bg-white/[0.025] sm:px-8 ${
@@ -801,9 +976,7 @@ function Dashboard() {
                         : ""
                     }`}
                   >
-
                     <div className="flex gap-5">
-
                       <div
                         className={`mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
                           index === 0
@@ -829,9 +1002,7 @@ function Dashboard() {
                       </div>
 
                       <div className="flex-1">
-
                         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-
                           <p className="font-medium text-white">
                             {item.title}
                           </p>
@@ -839,7 +1010,6 @@ function Dashboard() {
                           <span className="text-xs text-white/30">
                             {item.time}
                           </span>
-
                         </div>
 
                         <p className="mt-2 text-sm text-white/40">
@@ -849,52 +1019,34 @@ function Dashboard() {
                         <p className="mt-3 text-xs text-white/25">
                           {item.reference}
                         </p>
-
                       </div>
-
                     </div>
-
                   </div>
-
                 ))}
-
               </div>
-
             </div>
 
             {/* Activity Metrics */}
 
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
-
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
-
-                <p className="text-sm text-white/40">
-                  Events tracked
-                </p>
+                <p className="text-sm text-white/40">Events tracked</p>
 
                 <p className="mt-3 text-3xl font-semibold text-white">
                   {dashboard?.activity?.eventsTracked ?? 128}
                 </p>
-
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
-
-                <p className="text-sm text-white/40">
-                  Changes today
-                </p>
+                <p className="text-sm text-white/40">Changes today</p>
 
                 <p className="mt-3 text-3xl font-semibold text-white">
                   {dashboard?.activity?.changesToday ?? 24}
                 </p>
-
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
-
-                <p className="text-sm text-white/40">
-                  Sync status
-                </p>
+                <p className="text-sm text-white/40">Sync status</p>
 
                 <p
                   className={`mt-3 text-xl font-semibold ${
@@ -905,13 +1057,9 @@ function Dashboard() {
                 >
                   {dashboard?.activity?.syncStatus ?? "Synchronized"}
                 </p>
-
               </div>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =========================================================
@@ -919,31 +1067,21 @@ function Dashboard() {
         ========================================================= */}
 
         <footer className="relative border-t border-white/10">
-
           <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-10">
-
             <div>
-
-              <p className="font-semibold text-white">
-                RepoLens
-              </p>
+              <p className="font-semibold text-white">RepoLens</p>
 
               <p className="mt-1 text-sm text-white/35">
                 Engineering knowledge, synchronized.
               </p>
-
             </div>
 
             <p className="text-xs text-white/25">
               Repository intelligence platform
             </p>
-
           </div>
-
         </footer>
-
       </div>
-
     </div>
   );
 }

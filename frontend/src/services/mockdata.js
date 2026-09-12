@@ -248,3 +248,44 @@ export const mockRepositories = [
     }
   }
 ];
+export const mockAnalysis = {
+  analysisId: "analysis-001",
+  repositoryId: "repolens-ai-service",
+  commitHash: "f31d92a",
+  analysisTimestamp: "2026-09-07T07:18:00Z",
+  driftAnalysis: {
+    driftDetected: true,
+    affectedArtifacts: ["README", "ARCHITECTURE"],
+    overallReason:
+      "The repository structure and service responsibilities changed, but the current engineering documentation does not fully reflect those changes.",
+    confidence: 0.94,
+  },
+  suggestedUpdates: [
+    {
+      suggestionId: "suggestion-001",
+      artifactType: "README",
+      artifactPath: "README.md",
+      changeType: "MODIFY",
+      section: "Architecture",
+      currentContent: "The AI service handles repository analysis.",
+      suggestedContent:
+        "The AI service uses FastAPI and Tree-sitter to analyze repository changes, construct structured context, perform semantic reasoning, and detect engineering knowledge drift.",
+      explanation:
+        "The README does not describe the current responsibilities of the AI service.",
+      confidence: 0.96,
+    },
+    {
+      suggestionId: "suggestion-002",
+      artifactType: "ARCHITECTURE",
+      artifactPath: "docs/architecture.md",
+      changeType: "MODIFY",
+      section: "Service Architecture",
+      currentContent: "Spring Boot communicates with the frontend.",
+      suggestedContent:
+        "```mermaid\ngraph TD\n    React --> SpringBoot\n    SpringBoot --> FastAPI\n    SpringBoot --> PostgreSQL\n    SpringBoot --> GitHub\n```",
+      explanation:
+        "The architecture documentation does not represent the current Spring Boot to FastAPI integration.",
+      confidence: 0.91,
+    },
+  ],
+};

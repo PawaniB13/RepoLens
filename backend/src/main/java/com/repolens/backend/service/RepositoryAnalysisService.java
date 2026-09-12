@@ -4,6 +4,7 @@ import com.repolens.backend.model.Repository;
 import com.repolens.backend.model.RepositoryAnalysis;
 import com.repolens.backend.model.RepositoryFile;
 import com.repolens.backend.repository.RepositoryAnalysisRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,9 +16,7 @@ public class RepositoryAnalysisService {
     private final RepositoryFileService repositoryFileService;
     private final RepositoryAnalysisRepository repositoryAnalysisRepository;
 
-    /*
-     * Constructor used by Spring Boot.
-     */
+    @Autowired
     public RepositoryAnalysisService(
             RepositoryService repositoryService,
             RepositoryFileService repositoryFileService,
@@ -29,7 +28,7 @@ public class RepositoryAnalysisService {
     }
 
     /*
-     * Constructor used by existing unit tests.
+     * Constructor required by existing unit tests.
      */
     public RepositoryAnalysisService(
             RepositoryFileService repositoryFileService
@@ -38,11 +37,15 @@ public class RepositoryAnalysisService {
         this.repositoryFileService = repositoryFileService;
         this.repositoryAnalysisRepository = null;
     }
+
+    /*
+     * Constructor for compatibility with the Spring context test.
+     */
     public RepositoryAnalysisService() {
-    this.repositoryService = null;
-    this.repositoryFileService = new RepositoryFileService();
-    this.repositoryAnalysisRepository = null;
-}
+        this.repositoryService = null;
+        this.repositoryFileService = new RepositoryFileService();
+        this.repositoryAnalysisRepository = null;
+    }
 
     public RepositoryAnalysis analyzeRepository(Long repositoryId) {
         if (repositoryId == null || repositoryId <= 0) {
@@ -70,23 +73,51 @@ public class RepositoryAnalysisService {
         RepositoryAnalysis analysis = new RepositoryAnalysis();
 
         analysis.setRepositoryId(repositoryId);
-        analysis.setRepositoryName(
-                repositoryService == null
-                        ? "RepoLens"
-                        : findRepository(repositoryId).getName()
-        );
+
+        if (repositoryService == null) {
+            analysis.setRepositoryName("RepoLens");
+        } else {
+            analysis.setRepositoryName(
+                    findRepository(repositoryId).getName()
+            );
+        }
+
         analysis.setTotalFiles(files.size());
         analysis.setJavaFiles((int) javaFiles);
         analysis.setJavascriptFiles((int) javascriptFiles);
-
         analysis.setDefaultBranch("main");
         analysis.setForks(0);
         analysis.setLanguage("Unknown");
         analysis.setOpenIssues(0);
         analysis.setStars(0);
 
+        /*
+         * Unit-test mode does not use database persistence.
+         */
         if (repositoryAnalysisRepository == null) {
             return analysis;
+        }
+
+        /*
+         * Update an existing analysis instead of creating duplicates.
+         */
+        RepositoryAnalysis existing =
+                repositoryAnalysisRepository
+                        .findByRepositoryId(repositoryId)
+                        .orElse(null);
+
+        if (existing != null) {
+            existing.setRepositoryName(analysis.getRepositoryName());
+            existing.setTotalFiles(analysis.getTotalFiles());
+            existing.setJavaFiles(analysis.getJavaFiles());
+            existing.setJavascriptFiles(analysis.getJavascriptFiles());
+            existing.setDefaultBranch(analysis.getDefaultBranch());
+            existing.setForks(analysis.getForks());
+            existing.setLanguage(analysis.getLanguage());
+            existing.setOpenIssues(analysis.getOpenIssues());
+            existing.setStars(analysis.getStars());
+
+            return repositoryAnalysisRepository.save(existing);
         }
 
         return repositoryAnalysisRepository.save(analysis);

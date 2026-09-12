@@ -1,21 +1,20 @@
+from analyzers.python_analyzer import PythonAnalyzer
 from models.code_facts import CodeFacts
 
 
 class CodeAnalyzer:
     """
-    Deterministically analyzes source code using Tree-sitter.
+    Orchestrates deterministic source-code analysis.
 
-    The analyzer extracts structural facts from source code and returns
-    them as a CodeFacts object.
+    This class selects the appropriate language-specific analyzer
+    and returns deterministic CodeFacts.
 
     It does not perform semantic interpretation, drift detection,
     documentation analysis, or LLM inference.
     """
 
-    SUPPORTED_LANGUAGES = {
-        "python",
-        "javascript",
-        "java",
+    _ANALYZERS = {
+        "python": PythonAnalyzer,
     }
 
     def analyze(
@@ -25,19 +24,26 @@ class CodeAnalyzer:
         language: str,
     ) -> CodeFacts:
         """
-        Analyze a source file and return its deterministic code facts.
+        Analyze a source file using the registered language analyzer.
+
+        Unsupported or currently unimplemented languages are returned
+        as unsupported_language rather than raising an exception.
         """
 
         normalized_language = language.lower().strip()
 
-        if normalized_language not in self.SUPPORTED_LANGUAGES:
+        analyzer_class = self._ANALYZERS.get(normalized_language)
+
+        if analyzer_class is None:
             return CodeFacts(
                 filename=filename,
                 language=normalized_language,
                 parse_status="unsupported_language",
             )
 
-        # Parser implementation will be added next.
-        raise NotImplementedError(
-            "Tree-sitter parsing is not implemented yet."
+        analyzer = analyzer_class()
+
+        return analyzer.analyze(
+            filename=filename,
+            source_code=source_code,
         )

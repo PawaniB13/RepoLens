@@ -11,7 +11,9 @@ public class RepositoryFileService {
     public List<RepositoryFile> getFiles(Long repositoryId) {
 
         if (repositoryId == null || repositoryId <= 0) {
-            throw new IllegalArgumentException("Repository ID must be positive");
+            throw new IllegalArgumentException(
+                    "Repository ID must be positive"
+            );
         }
 
         return List.of(

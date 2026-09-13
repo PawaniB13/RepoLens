@@ -2,21 +2,22 @@ package com.repolens.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.repolens.backend.model.GitHubWebhookEvent;
+import com.repolens.backend.repository.GitHubWebhookEventRepository;
 import org.springframework.stereotype.Service;
-
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GitHubWebhookService {
 
-    private static final Set<String> PROCESSED_DELIVERIES =
-            ConcurrentHashMap.newKeySet();
-
     private final ObjectMapper objectMapper;
+    private final GitHubWebhookEventRepository webhookEventRepository;
 
-    public GitHubWebhookService(ObjectMapper objectMapper) {
+    public GitHubWebhookService(
+            ObjectMapper objectMapper,
+            GitHubWebhookEventRepository webhookEventRepository
+    ) {
         this.objectMapper = objectMapper;
+        this.webhookEventRepository = webhookEventRepository;
     }
 
     public void processWebhook(
@@ -25,61 +26,50 @@ public class GitHubWebhookService {
             String signature,
             String payload
     ) {
-        if (eventType == null || eventType.isBlank()) {
+        if (deliveryId == null || deliveryId.isBlank()) {
             throw new IllegalArgumentException(
-                    "Missing X-GitHub-Event header"
+                    "Missing GitHub delivery ID"
             );
         }
 
-        if (deliveryId != null && !deliveryId.isBlank()) {
-            boolean firstDelivery =
-                    PROCESSED_DELIVERIES.add(deliveryId);
-
-            if (!firstDelivery) {
-                System.out.println(
-                        "Ignoring duplicate GitHub delivery: "
-                                + deliveryId
-                );
-                return;
-            }
+        if (webhookEventRepository.existsByDeliveryId(deliveryId)) {
+            System.out.println(
+                    "Duplicate GitHub webhook ignored: " + deliveryId
+            );
+            return;
         }
 
         try {
             JsonNode root = objectMapper.readTree(payload);
 
-            JsonNode repositoryNode = root.path("repository");
-            JsonNode refNode = root.path("ref");
+            String repository = root.path("repository")
+                    .path("full_name")
+                    .asText(null);
 
-            String repositoryFullName =
-                    repositoryNode.path("full_name").asText(null);
+            String branch = root.path("ref")
+                    .asText(null);
 
-            String branch = extractBranch(eventType, root, refNode);
+            String sender = root.path("sender")
+                    .path("login")
+                    .asText(null);
 
-            System.out.println("GitHub event: " + eventType);
-            System.out.println("Repository: " + repositoryFullName);
+            GitHubWebhookEvent webhookEvent =
+                    new GitHubWebhookEvent(
+                            deliveryId,
+                            eventType,
+                            repository,
+                            branch,
+                            sender
+                    );
+
+            webhookEventRepository.save(webhookEvent);
+
+            System.out.println("GitHub webhook saved");
+            System.out.println("Event type: " + eventType);
+            System.out.println("Delivery ID: " + deliveryId);
+            System.out.println("Repository: " + repository);
             System.out.println("Branch: " + branch);
-
-            switch (eventType) {
-                case "push" -> handlePushEvent(
-                        repositoryFullName,
-                        branch,
-                        root
-                );
-
-                case "pull_request" -> handlePullRequestEvent(
-                        repositoryFullName,
-                        root
-                );
-
-                case "ping" -> System.out.println(
-                        "GitHub webhook ping received"
-                );
-
-                default -> System.out.println(
-                        "Ignoring unsupported GitHub event: "
-                                + eventType
-                );
-            }
+            System.out.println("Sender: " + sender);
 
         } catch (Exception exception) {
             throw new IllegalArgumentException(
@@ -87,73 +77,5 @@ public class GitHubWebhookService {
                     exception
             );
         }
-    }
-
-    private String extractBranch(
-            String eventType,
-            JsonNode root,
-            JsonNode refNode
-    ) {
-        if ("push".equals(eventType)) {
-            String ref = refNode.asText("");
-
-            if (ref.startsWith("refs/heads/")) {
-                return ref.substring("refs/heads/".length());
-            }
-
-            return ref;
-        }
-
-        if ("pull_request".equals(eventType)) {
-            return root.path("pull_request")
-                    .path("base")
-                    .path("ref")
-                    .asText(null);
-        }
-
-        return null;
-    }
-
-    private void handlePushEvent(
-            String repositoryFullName,
-            String branch,
-            JsonNode root
-    ) {
-        int changedFileCount =
-                root.path("commits").size();
-
-        System.out.println(
-                "Push event received for "
-                        + repositoryFullName
-                        + " on branch "
-                        + branch
-                        + ". Commits: "
-                        + changedFileCount
-        );
-
-        // Next step:
-        // 1. Fetch changed files from GitHub.
-        // 2. Store the webhook event.
-        // 3. Trigger repository analysis.
-    }
-
-    private void handlePullRequestEvent(
-            String repositoryFullName,
-            JsonNode root
-    ) {
-        String action =
-                root.path("action").asText(null);
-
-        System.out.println(
-                "Pull request event received for "
-                        + repositoryFullName
-                        + ". Action: "
-                        + action
-        );
-
-        // Next step:
-        // 1. Check opened/synchronize/reopened actions.
-        // 2. Fetch changed files.
-        // 3. Trigger analysis if required.
     }
 }

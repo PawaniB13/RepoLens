@@ -24,4 +24,9 @@ public class GitHubWebhookEventController {
     public List<GitHubWebhookEvent> getWebhookEvents() {
         return webhookEventRepository.findAll();
     }
+
+    @GetMapping("/push")
+    public List<GitHubWebhookEvent> getPushWebhookEvents() {
+        return webhookEventRepository.findByEventType("push");
+    }
 }

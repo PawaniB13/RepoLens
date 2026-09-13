@@ -2,7 +2,9 @@ package com.repolens.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.repolens.backend.model.GitHubChangedFile;
 import com.repolens.backend.model.GitHubWebhookEvent;
+import com.repolens.backend.repository.GitHubChangedFileRepository;
 import com.repolens.backend.repository.GitHubWebhookEventRepository;
 import org.springframework.stereotype.Service;
 
@@ -11,13 +13,16 @@ public class GitHubWebhookService {
 
     private final ObjectMapper objectMapper;
     private final GitHubWebhookEventRepository webhookEventRepository;
+    private final GitHubChangedFileRepository changedFileRepository;
 
     public GitHubWebhookService(
             ObjectMapper objectMapper,
-            GitHubWebhookEventRepository webhookEventRepository
+            GitHubWebhookEventRepository webhookEventRepository,
+            GitHubChangedFileRepository changedFileRepository
     ) {
         this.objectMapper = objectMapper;
         this.webhookEventRepository = webhookEventRepository;
+        this.changedFileRepository = changedFileRepository;
     }
 
     public void processWebhook(
@@ -26,9 +31,21 @@ public class GitHubWebhookService {
             String signature,
             String payload
     ) {
+        if (eventType == null || eventType.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Missing GitHub event type"
+            );
+        }
+
         if (deliveryId == null || deliveryId.isBlank()) {
             throw new IllegalArgumentException(
                     "Missing GitHub delivery ID"
+            );
+        }
+
+        if (payload == null || payload.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Missing GitHub webhook payload"
             );
         }
 
@@ -52,9 +69,6 @@ public class GitHubWebhookService {
             String sender = root.path("sender")
                     .path("login")
                     .asText(null);
-                    if ("push".equals(eventType)) {
-    printChangedFiles(root);
-}
 
             GitHubWebhookEvent webhookEvent =
                     new GitHubWebhookEvent(
@@ -66,6 +80,10 @@ public class GitHubWebhookService {
                     );
 
             webhookEventRepository.save(webhookEvent);
+
+            if ("push".equals(eventType)) {
+                saveChangedFiles(root, deliveryId);
+            }
 
             System.out.println("GitHub webhook saved");
             System.out.println("Event type: " + eventType);
@@ -81,32 +99,73 @@ public class GitHubWebhookService {
             );
         }
     }
-    private void printChangedFiles(JsonNode root) {
-    JsonNode commits = root.path("commits");
 
-    if (!commits.isArray()) {
-        System.out.println("No commits found in webhook payload");
-        return;
+    private void saveChangedFiles(
+            JsonNode root,
+            String deliveryId
+    ) {
+        JsonNode commits = root.path("commits");
+
+        if (!commits.isArray()) {
+            System.out.println(
+                    "No commits found in push webhook payload"
+            );
+            return;
+        }
+
+        for (JsonNode commit : commits) {
+            String commitId = commit.path("id")
+                    .asText("unknown");
+
+            saveFileList(
+                    deliveryId,
+                    commitId,
+                    commit.path("added"),
+                    "ADDED"
+            );
+
+            saveFileList(
+                    deliveryId,
+                    commitId,
+                    commit.path("modified"),
+                    "MODIFIED"
+            );
+
+            saveFileList(
+                    deliveryId,
+                    commitId,
+                    commit.path("removed"),
+                    "REMOVED"
+            );
+        }
     }
 
-    for (JsonNode commit : commits) {
-        String commitId = commit.path("id").asText("unknown");
+    private void saveFileList(
+            String deliveryId,
+            String commitId,
+            JsonNode files,
+            String changeType
+    ) {
+        if (!files.isArray()) {
+            return;
+        }
 
-        System.out.println("Commit: " + commitId);
+        for (JsonNode file : files) {
+            String filePath = file.asText();
 
-        printFileList("Added", commit.path("added"));
-        printFileList("Modified", commit.path("modified"));
-        printFileList("Removed", commit.path("removed"));
+            GitHubChangedFile changedFile =
+                    new GitHubChangedFile(
+                            deliveryId,
+                            commitId,
+                            filePath,
+                            changeType
+                    );
+
+            changedFileRepository.save(changedFile);
+
+            System.out.println(
+                    changeType + " file saved: " + filePath
+            );
+        }
     }
-}
-
-private void printFileList(String action, JsonNode files) {
-    if (!files.isArray()) {
-        return;
-    }
-
-    for (JsonNode file : files) {
-        System.out.println(action + " file: " + file.asText());
-    }
-}
 }

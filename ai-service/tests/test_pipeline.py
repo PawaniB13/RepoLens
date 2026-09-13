@@ -65,7 +65,24 @@ class FakeUpdateGenerationClient(UpdateGenerationClient):
         self.received_context = context
         self.received_semantic_analysis = semantic_analysis
 
-        return []
+        return [
+            SuggestedUpdate(
+                artifactType="README",
+                artifactPath="README.md",
+                changeType="MODIFY",
+                section="Overview",
+                currentContent="This is a FastAPI application.",
+                suggestedContent=(
+                    "This is a FastAPI application.\n\n"
+                    "It exposes a GET /hello endpoint."
+                ),
+                explanation=(
+                    "The README does not describe the newly added "
+                    "GET /hello endpoint."
+                ),
+                confidence=0.9,
+            )
+        ]
 
 
 def create_request() -> AnalyzeRequest:
@@ -194,8 +211,52 @@ def test_pipeline_orchestrates_analysis_flow():
     assert result.drift_analysis.affectedArtifacts == ["README"]
     assert result.drift_analysis.confidence == 0.9
 
-    assert result.suggested_updates == []
+    assert len(result.suggested_updates) == 1
+
+    update = result.suggested_updates[0]
+
+    assert update.artifactType == "README"
+    assert update.artifactPath == "README.md"
+    assert update.changeType == "MODIFY"
+    assert update.currentContent == (
+        "This is a FastAPI application."
+    )
+    assert update.suggestedContent == (
+        "This is a FastAPI application.\n\n"
+        "It exposes a GET /hello endpoint."
+    )
+    assert update.confidence == 0.9
 
     assert fake_update_client.called is True
     assert fake_update_client.received_context is not None
     assert fake_update_client.received_semantic_analysis is not None
+
+    updated_knowledge = result.updated_engineering_knowledge
+
+    assert (
+        updated_knowledge.readme.content
+        == (
+            "This is a FastAPI application.\n\n"
+            "It exposes a GET /hello endpoint."
+        )
+    )
+
+    assert (
+        updated_knowledge.architectureDocumentation.content
+        == "The application uses FastAPI."
+    )
+
+    assert (
+        updated_knowledge.apiDocumentation.content
+        == ""
+    )
+
+    # The original request knowledge must remain unchanged.
+    original_request = create_request()
+
+    assert (
+        original_request.currentEngineeringKnowledge
+        .readme
+        .content
+        == "This is a FastAPI application."
+    )

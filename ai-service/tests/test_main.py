@@ -3,6 +3,13 @@ from fastapi.testclient import TestClient
 from drift.detector import DriftDetector
 from exceptions import AnalysisFailedException
 from main import app, get_analysis_pipeline
+from models.requests import (
+    ApiDocumentation,
+    ArchitectureDocumentation,
+    CurrentEngineeringKnowledge,
+    MermaidDiagram,
+    ReadmeKnowledge,
+)
 from models.response import SuggestedUpdate
 from models.semantic_analysis import (
     SemanticAnalysisResult,
@@ -71,11 +78,21 @@ class FakeAnalysisPipeline:
                 )
             )
 
+        updated_knowledge = request.currentEngineeringKnowledge.model_copy(
+            deep=True
+        )
+
+        if self.drift_detected:
+            updated_knowledge.readme.content = (
+                "The application uses OAuth2 authentication."
+            )
+
         return PipelineAnalysisResult(
             code_facts=[],
             semantic_analysis=semantic_analysis,
             drift_analysis=drift_analysis,
             suggested_updates=suggested_updates,
+            updated_engineering_knowledge=updated_knowledge,
         )
 
 
@@ -185,6 +202,11 @@ def test_analyze_endpoint_uses_analysis_pipeline():
 
         assert len(body["suggestedUpdates"]) == 1
         assert body["suggestedUpdates"][0]["artifactType"] == "README"
+
+        # The public API exposes the suggested update, while the
+        # internally updated engineering knowledge remains an
+        # internal pipeline result.
+        assert "updatedEngineeringKnowledge" not in body
 
     finally:
         app.dependency_overrides.clear()

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AnalysisMetadata(BaseModel):
@@ -16,18 +16,28 @@ class DriftAnalysis(BaseModel):
         Literal["README", "ARCHITECTURE", "API_DOCUMENTATION"]
     ]
     overallReason: str
-    confidence: float
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
 
 
 class SuggestedUpdate(BaseModel):
-    artifactType: Literal["README", "ARCHITECTURE", "API_DOCUMENTATION"]
+    artifactType: Literal[
+        "README",
+        "ARCHITECTURE",
+        "API_DOCUMENTATION",
+    ]
     artifactPath: str
     changeType: Literal["MODIFY", "CREATE"]
     section: str | None = None
     currentContent: str
     suggestedContent: str
     explanation: str
-    confidence: float
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
 
 
 class DebugInfo(BaseModel):

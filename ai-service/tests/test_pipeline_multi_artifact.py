@@ -187,7 +187,7 @@ def hello():
     )
 
 
-def test_pipeline_applies_multiple_artifact_updates():
+def test_pipeline_generates_multiple_artifact_updates():
     pipeline = AnalysisPipeline(
         llm_client=MultiArtifactLLMClient(),
         update_generator=LLMUpdateGenerator(
@@ -208,56 +208,28 @@ def test_pipeline_applies_multiple_artifact_updates():
 
     assert len(result.suggested_updates) == 2
 
-    updated_knowledge = result.updated_engineering_knowledge
+    readme_update = result.suggested_updates[0]
 
-    assert updated_knowledge is not None
-
-    assert updated_knowledge.readme.content == (
+    assert readme_update.artifactType == "README"
+    assert readme_update.artifactPath == "README.md"
+    assert readme_update.suggestedContent == (
         "A FastAPI application.\n\n"
         "It exposes a GET /hello endpoint."
     )
 
-    assert (
-        updated_knowledge.architectureDocumentation.content
-        == (
-            "The application uses FastAPI.\n\n"
-            "```mermaid\n"
-            "flowchart TD\n"
-            "    A[Client] --> B[FastAPI]\n"
-            "    B --> C[Application Logic]\n"
-            "```"
-        )
+    architecture_update = result.suggested_updates[1]
+
+    assert architecture_update.artifactType == "ARCHITECTURE"
+    assert architecture_update.artifactPath == (
+        "docs/architecture.md"
+    )
+    assert "```mermaid" in architecture_update.suggestedContent
+    assert "A[Client] --> B[FastAPI]" in (
+        architecture_update.suggestedContent
     )
 
-    assert (
-        len(
-            updated_knowledge
-            .architectureDocumentation
-            .mermaidDiagrams
-        )
-        == 1
-    )
-
-    diagram = (
-        updated_knowledge
-        .architectureDocumentation
-        .mermaidDiagrams[0]
-    )
-
-    assert diagram.id == "diagram-1"
-    assert diagram.type == "mermaid"
-    assert diagram.content == (
-        "flowchart TD\n"
-        "    A[Client] --> B[FastAPI]\n"
-        "    B --> C[Application Logic]"
-    )
-
-    assert (
-        updated_knowledge.apiDocumentation.content
-        == "The API is documented."
-    )
-
-    # The original request remains unchanged.
+    # Analysis must not automatically mutate the current
+    # engineering knowledge.
     assert request.currentEngineeringKnowledge.readme.content == (
         "A FastAPI application."
     )

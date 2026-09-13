@@ -230,33 +230,3 @@ def test_pipeline_orchestrates_analysis_flow():
     assert fake_update_client.called is True
     assert fake_update_client.received_context is not None
     assert fake_update_client.received_semantic_analysis is not None
-
-    updated_knowledge = result.updated_engineering_knowledge
-
-    assert (
-        updated_knowledge.readme.content
-        == (
-            "This is a FastAPI application.\n\n"
-            "It exposes a GET /hello endpoint."
-        )
-    )
-
-    assert (
-        updated_knowledge.architectureDocumentation.content
-        == "The application uses FastAPI."
-    )
-
-    assert (
-        updated_knowledge.apiDocumentation.content
-        == ""
-    )
-
-    # The original request knowledge must remain unchanged.
-    original_request = create_request()
-
-    assert (
-        original_request.currentEngineeringKnowledge
-        .readme
-        .content
-        == "This is a FastAPI application."
-    )

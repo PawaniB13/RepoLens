@@ -52,6 +52,9 @@ public class GitHubWebhookService {
             String sender = root.path("sender")
                     .path("login")
                     .asText(null);
+                    if ("push".equals(eventType)) {
+    printChangedFiles(root);
+}
 
             GitHubWebhookEvent webhookEvent =
                     new GitHubWebhookEvent(
@@ -78,4 +81,32 @@ public class GitHubWebhookService {
             );
         }
     }
+    private void printChangedFiles(JsonNode root) {
+    JsonNode commits = root.path("commits");
+
+    if (!commits.isArray()) {
+        System.out.println("No commits found in webhook payload");
+        return;
+    }
+
+    for (JsonNode commit : commits) {
+        String commitId = commit.path("id").asText("unknown");
+
+        System.out.println("Commit: " + commitId);
+
+        printFileList("Added", commit.path("added"));
+        printFileList("Modified", commit.path("modified"));
+        printFileList("Removed", commit.path("removed"));
+    }
+}
+
+private void printFileList(String action, JsonNode files) {
+    if (!files.isArray()) {
+        return;
+    }
+
+    for (JsonNode file : files) {
+        System.out.println(action + " file: " + file.asText());
+    }
+}
 }

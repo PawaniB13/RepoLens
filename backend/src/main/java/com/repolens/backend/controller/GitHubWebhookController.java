@@ -23,9 +23,24 @@ public class GitHubWebhookController {
                     required = false
             ) String eventType,
 
+            @RequestHeader(
+                    value = "X-GitHub-Delivery",
+                    required = false
+            ) String deliveryId,
+
+            @RequestHeader(
+                    value = "X-Hub-Signature-256",
+                    required = false
+            ) String signature,
+
             @RequestBody String payload
     ) {
-        gitHubWebhookService.processWebhook(eventType, payload);
+        gitHubWebhookService.processWebhook(
+                eventType,
+                deliveryId,
+                signature,
+                payload
+        );
 
         return ResponseEntity.ok(
                 "GitHub webhook received successfully"
@@ -35,7 +50,7 @@ public class GitHubWebhookController {
     @GetMapping
     public ResponseEntity<String> testWebhookEndpoint() {
         return ResponseEntity.ok(
-                "GitHub webhook endpoint is running. Send a POST request to use it."
+                "GitHub webhook endpoint is running. Send a POST request."
         );
     }
 }

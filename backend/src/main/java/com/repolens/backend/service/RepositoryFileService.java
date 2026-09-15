@@ -3,13 +3,10 @@ package com.repolens.backend.service;
 import com.repolens.backend.model.Repository;
 import com.repolens.backend.model.RepositoryFile;
 import com.repolens.backend.repository.RepositoryFileRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -20,42 +17,18 @@ public class RepositoryFileService {
     private final RepositoryFileRepository repositoryFileRepository;
     private final RestClient restClient;
 
-    @Autowired
     public RepositoryFileService(
             RepositoryService repositoryService,
             RepositoryFileRepository repositoryFileRepository
     ) {
         this.repositoryService = repositoryService;
         this.repositoryFileRepository = repositoryFileRepository;
-
         this.restClient = RestClient.builder()
                 .baseUrl("https://api.github.com")
-                .defaultHeader(
-                        "Accept",
-                        "application/vnd.github+json"
-                )
-                .defaultHeader(
-                        "X-GitHub-Api-Version",
-                        "2022-11-28"
-                )
                 .build();
     }
 
     public List<RepositoryFile> getFiles(Long repositoryId) {
-        if (repositoryId == null || repositoryId <= 0) {
-            throw new IllegalArgumentException(
-                    "Repository ID must be positive"
-            );
-        }
-
-        Repository repository =
-                repositoryService.getRepository(repositoryId);
-
-        /*
-         * Return files already stored in the database.
-         * This prevents normal GET requests and tests from
-         * unnecessarily calling GitHub.
-         */
         List<RepositoryFile> storedFiles =
                 repositoryFileRepository.findByRepositoryId(repositoryId);
 
@@ -63,98 +36,20 @@ public class RepositoryFileService {
             return storedFiles;
         }
 
-        /*
-         * If no files are stored yet, load them from GitHub.
-         */
-        Map<?, ?> repositoryResponse =
-                getGitHubRepository(repository);
-
-        String[] repositoryParts =
-                parseGitHubRepository(repository.getUrl());
-
-        String owner = repositoryParts[0];
-        String repo = repositoryParts[1];
-
-        String defaultBranch = getStringValue(
-                repositoryResponse,
-                "default_branch",
-                "main"
-        );
-
-        Map<?, ?> treeResponse = restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path(
-                                "/repos/{owner}/{repo}/git/trees/{branch}"
-                        )
-                        .queryParam("recursive", "1")
-                        .build(
-                                owner,
-                                repo,
-                                defaultBranch
-                        ))
-                .retrieve()
-                .body(Map.class);
-
-        if (treeResponse == null) {
-            throw new IllegalArgumentException(
-                    "GitHub repository files could not be loaded"
-            );
-        }
-
-        Object treeObject = treeResponse.get("tree");
-
-        if (!(treeObject instanceof List<?>)) {
-            throw new IllegalArgumentException(
-                    "GitHub repository tree is invalid"
-            );
-        }
-
-        List<RepositoryFile> files = new ArrayList<>();
-
-        for (Object item : (List<?>) treeObject) {
-            if (!(item instanceof Map<?, ?>)) {
-                continue;
-            }
-
-            Map<?, ?> itemMap = (Map<?, ?>) item;
-
-            if (!"blob".equals(
-                    String.valueOf(itemMap.get("type"))
-            )) {
-                continue;
-            }
-
-            String path = String.valueOf(
-                    itemMap.get("path")
-            );
-
-            RepositoryFile file = new RepositoryFile(
-                    getFileName(path),
-                    getFileType(path),
-                    path
-            );
-
-            file.setRepository(repository);
-            files.add(file);
-        }
-
-        return files;
-    }
-
-    public List<RepositoryFile> refreshFiles(Long repositoryId) {
-        if (repositoryId == null || repositoryId <= 0) {
-            throw new IllegalArgumentException(
-                    "Repository ID must be positive"
-            );
-        }
-
         Repository repository =
                 repositoryService.getRepository(repositoryId);
 
-        repository.getFiles().clear();
+        return loadFilesFromGitHub(repository);
+    }
+
+    public List<RepositoryFile> refreshFiles(Long repositoryId) {
+        Repository repository =
+                repositoryService.getRepository(repositoryId);
 
         List<RepositoryFile> latestFiles =
                 loadFilesFromGitHub(repository);
+
+        repository.getFiles().clear();
 
         for (RepositoryFile file : latestFiles) {
             repository.addFile(file);
@@ -166,242 +61,204 @@ public class RepositoryFileService {
                 .findByRepositoryId(repositoryId);
     }
 
-    public Map<?, ?> getGitHubRepositoryMetadata(Long repositoryId) {
-        if (repositoryId == null || repositoryId <= 0) {
-            throw new IllegalArgumentException(
-                    "Repository ID must be positive"
-            );
-        }
+    public List<RepositoryFile> refreshFilesByRepositoryUrl(
+            String repositoryUrl
+    ) {
+        Repository repository = repositoryService
+                .getRepositories()
+                .stream()
+                .filter(item -> repositoryUrl.equals(item.getUrl()))
+                .findFirst()
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Repository not found for URL: "
+                                        + repositoryUrl
+                        )
+                );
 
-        Repository repository =
-                repositoryService.getRepository(repositoryId);
-
-        return getGitHubRepository(repository);
+        return refreshFiles(repository.getId());
     }
 
     public String getFileContent(
             Long repositoryId,
-            String path
+            String filePath
     ) {
-        if (repositoryId == null || repositoryId <= 0) {
-            throw new IllegalArgumentException(
-                    "Repository ID must be positive"
-            );
-        }
-
-        if (path == null || path.isBlank()) {
-            throw new IllegalArgumentException(
-                    "File path is required"
-            );
-        }
-
         Repository repository =
                 repositoryService.getRepository(repositoryId);
 
-        String[] repositoryParts =
-                parseGitHubRepository(repository.getUrl());
+        String[] parts = repository.getUrl()
+                .replace("https://github.com/", "")
+                .split("/");
 
-        String owner = repositoryParts[0];
-        String repo = repositoryParts[1];
+        if (parts.length < 2) {
+            throw new IllegalArgumentException(
+                    "Invalid GitHub repository URL"
+            );
+        }
 
-        Map<?, ?> response = restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path(
-                                "/repos/{owner}/{repo}/contents/{path}"
-                        )
-                        .build(
-                                owner,
-                                repo,
-                                path
-                        ))
+        String owner = parts[0];
+        String repo = parts[1];
+
+        Map<String, Object> response = restClient.get()
+                .uri("/repos/{owner}/{repo}/contents/{path}",
+                        owner,
+                        repo,
+                        filePath)
                 .retrieve()
                 .body(Map.class);
 
-        if (response == null) {
-            throw new IllegalArgumentException(
-                    "GitHub file content was not found"
-            );
+        if (response == null || response.get("content") == null) {
+            return "";
         }
 
-        Object contentObject = response.get("content");
-
-        if (!(contentObject instanceof String)) {
-            throw new IllegalArgumentException(
-                    "GitHub did not return file content"
-            );
-        }
-
-        String cleanContent = ((String) contentObject)
-                .replace("\n", "")
-                .replace("\r", "")
-                .trim();
-
-        byte[] decodedBytes =
-                Base64.getMimeDecoder().decode(cleanContent);
-
-        return new String(
-                decodedBytes,
-                StandardCharsets.UTF_8
-        );
+        return response.get("content").toString();
     }
 
     private List<RepositoryFile> loadFilesFromGitHub(
             Repository repository
     ) {
-        Map<?, ?> repositoryResponse =
-                getGitHubRepository(repository);
+        String[] parts = repository.getUrl()
+                .replace("https://github.com/", "")
+                .split("/");
 
-        String[] repositoryParts =
-                parseGitHubRepository(repository.getUrl());
-
-        String owner = repositoryParts[0];
-        String repo = repositoryParts[1];
-
-        String defaultBranch = getStringValue(
-                repositoryResponse,
-                "default_branch",
-                "main"
-        );
-
-        Map<?, ?> treeResponse = restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path(
-                                "/repos/{owner}/{repo}/git/trees/{branch}"
-                        )
-                        .queryParam("recursive", "1")
-                        .build(
-                                owner,
-                                repo,
-                                defaultBranch
-                        ))
-                .retrieve()
-                .body(Map.class);
-
-        if (treeResponse == null) {
+        if (parts.length < 2) {
             throw new IllegalArgumentException(
-                    "GitHub repository files could not be loaded"
+                    "Invalid GitHub repository URL"
             );
         }
 
-        Object treeObject = treeResponse.get("tree");
+        String owner = parts[0];
+        String repo = parts[1];
 
-        if (!(treeObject instanceof List<?>)) {
-            throw new IllegalArgumentException(
-                    "GitHub repository tree is invalid"
-            );
+        Map<String, Object> repositoryData =
+                getGitHubRepository(owner, repo);
+
+        String defaultBranch =
+                getStringValue(repositoryData, "default_branch");
+
+        if (defaultBranch == null) {
+            defaultBranch = "main";
+        }
+
+        Map<String, Object> branchData = restClient.get()
+                .uri("/repos/{owner}/{repo}/git/refs/heads/{branch}",
+                        owner,
+                        repo,
+                        defaultBranch)
+                .retrieve()
+                .body(Map.class);
+
+        if (branchData == null) {
+            return List.of();
+        }
+
+        Map<String, Object> object =
+                castMap(castMap(branchData.get("object")));
+
+        String treeSha =
+                getStringValue(object, "sha");
+
+        if (treeSha == null) {
+            return List.of();
+        }
+
+        Map<String, Object> treeData = restClient.get()
+                .uri("/repos/{owner}/{repo}/git/trees/{sha}?recursive=1",
+                        owner,
+                        repo,
+                        treeSha)
+                .retrieve()
+                .body(Map.class);
+
+        if (treeData == null) {
+            return List.of();
+        }
+
+        Object treeValue = treeData.get("tree");
+
+        if (!(treeValue instanceof List<?> tree)) {
+            return List.of();
         }
 
         List<RepositoryFile> files = new ArrayList<>();
 
-        for (Object item : (List<?>) treeObject) {
-            if (!(item instanceof Map<?, ?>)) {
+        for (Object item : tree) {
+            Map<String, Object> fileData =
+                    castMap(item);
+
+            String type =
+                    getStringValue(fileData, "type");
+
+            String path =
+                    getStringValue(fileData, "path");
+
+            if (!"blob".equals(type) || path == null) {
                 continue;
             }
 
-            Map<?, ?> itemMap = (Map<?, ?>) item;
+            String fileName = getFileName(path);
+            String fileType = getFileType(fileName);
 
-            if (!"blob".equals(
-                    String.valueOf(itemMap.get("type"))
-            )) {
-                continue;
-            }
-
-            String path = String.valueOf(
-                    itemMap.get("path")
+            files.add(
+                    new RepositoryFile(
+                            fileName,
+                            fileType,
+                            path
+                    )
             );
-
-            RepositoryFile file = new RepositoryFile(
-                    getFileName(path),
-                    getFileType(path),
-                    path
-            );
-
-            file.setRepository(repository);
-            files.add(file);
         }
 
         return files;
     }
 
-    private Map<?, ?> getGitHubRepository(
-            Repository repository
+    private Map<String, Object> getGitHubRepository(
+            String owner,
+            String repo
     ) {
-        String[] repositoryParts =
-                parseGitHubRepository(repository.getUrl());
-
-        return restClient.get()
-                .uri(
-                        "/repos/{owner}/{repo}",
-                        repositoryParts[0],
-                        repositoryParts[1]
-                )
+        Map<String, Object> response = restClient.get()
+                .uri("/repos/{owner}/{repo}", owner, repo)
                 .retrieve()
                 .body(Map.class);
+
+        return response == null ? Map.of() : response;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> castMap(Object value) {
+        if (!(value instanceof Map<?, ?>)) {
+            return Map.of();
+        }
+
+        return (Map<String, Object>) value;
     }
 
     private String getStringValue(
-            Map<?, ?> map,
-            String key,
-            String defaultValue
+            Map<String, Object> data,
+            String key
     ) {
-        Object value = map.get(key);
+        Object value = data.get(key);
 
-        if (value == null
-                || String.valueOf(value).isBlank()) {
-            return defaultValue;
-        }
-
-        return String.valueOf(value);
-    }
-
-    private String[] parseGitHubRepository(String url) {
-        if (url == null || url.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Repository URL is required"
-            );
-        }
-
-        String cleanUrl = url
-                .trim()
-                .replace("https://github.com/", "")
-                .replace("http://github.com/", "")
-                .replace("github.com/", "")
-                .replaceAll("/+$", "");
-
-        String[] parts = cleanUrl.split("/");
-
-        if (parts.length < 2) {
-            throw new IllegalArgumentException(
-                    "Invalid GitHub repository URL: " + url
-            );
-        }
-
-        return new String[]{
-                parts[0],
-                parts[1].replaceAll("\\.git$", "")
-        };
+        return value == null ? null : value.toString();
     }
 
     private String getFileName(String path) {
-        int lastSlash = path.lastIndexOf('/');
+        int lastSlash = path.lastIndexOf("/");
 
-        if (lastSlash >= 0) {
-            return path.substring(lastSlash + 1);
+        if (lastSlash < 0) {
+            return path;
         }
 
-        return path;
+        return path.substring(lastSlash + 1);
     }
 
-    private String getFileType(String path) {
-        int lastDot = path.lastIndexOf('.');
+    private String getFileType(String fileName) {
+        int lastDot = fileName.lastIndexOf(".");
 
-        if (lastDot < 0 || lastDot == path.length() - 1) {
-            return "Unknown";
+        if (lastDot < 0) {
+            return "unknown";
         }
 
-        String extension = path.substring(lastDot + 1);
-
-        return extension.substring(0, 1).toUpperCase()
-                + extension.substring(1);
+        return fileName.substring(lastDot + 1)
+                .toLowerCase();
     }
 }

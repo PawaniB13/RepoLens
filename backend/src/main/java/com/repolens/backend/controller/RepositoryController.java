@@ -4,6 +4,7 @@ import com.repolens.backend.dto.GitHubImportRequest;
 import com.repolens.backend.model.Repository;
 import com.repolens.backend.service.GitHubService;
 import com.repolens.backend.service.RepositoryService;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -53,7 +54,21 @@ public class RepositoryController {
     }
 
     @PostMapping("/import")
-public Repository importRepository(
+    public Repository importRepository(
+            @RequestBody GitHubImportRequest request
+    ) {
+        String[] parts = request.getRepo().split("/", 2);
+
+        if (parts.length != 2) {
+            throw new IllegalArgumentException(
+                    "Repository must use owner/name format"
+            );
+        }
+
+        return gitHubService.importRepository(parts[0], parts[1]);
+    }
+    @PostMapping("/refresh")
+public Repository refreshRepository(
         @RequestBody GitHubImportRequest request
 ) {
     String[] parts = request.getRepo().split("/", 2);
@@ -64,6 +79,14 @@ public Repository importRepository(
         );
     }
 
-    return gitHubService.importRepository(parts[0], parts[1]);
+    return gitHubService.refreshRepository(
+            parts[0],
+            parts[1]
+    );
 }
+
+    @DeleteMapping("/{id}")
+    public void deleteRepository(@PathVariable Long id) {
+        repositoryService.deleteRepository(id);
+    }
 }

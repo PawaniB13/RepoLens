@@ -11,7 +11,9 @@ public class RepositoryService {
 
     private final RepositoryRepository repositoryRepository;
 
-    public RepositoryService(RepositoryRepository repositoryRepository) {
+    public RepositoryService(
+            RepositoryRepository repositoryRepository
+    ) {
         this.repositoryRepository = repositoryRepository;
     }
 
@@ -29,6 +31,12 @@ public class RepositoryService {
     }
 
     public Repository getRepository(Long id) {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException(
+                    "Repository ID must be positive"
+            );
+        }
+
         return repositoryRepository.findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
@@ -37,24 +45,49 @@ public class RepositoryService {
                 );
     }
 
-    public Repository importRepository(String name, String url) {
-    String normalizedUrl = url.trim().toLowerCase();
+    public Repository importRepository(
+            String name,
+            String url
+    ) {
+        String normalizedUrl = url.trim().toLowerCase();
 
-    return repositoryRepository.findAll()
-            .stream()
-            .filter(repository ->
-                    repository.getUrl() != null
-                            && repository.getUrl()
-                            .trim()
-                            .toLowerCase()
-                            .equals(normalizedUrl)
-            )
-            .findFirst()
-            .orElseGet(() -> {
-                Repository repository =
-                        new Repository(name, url);
+        return repositoryRepository.findAll()
+                .stream()
+                .filter(repository ->
+                        repository.getUrl() != null
+                                && repository.getUrl()
+                                .trim()
+                                .toLowerCase()
+                                .equals(normalizedUrl)
+                )
+                .findFirst()
+                .orElseGet(() -> {
+                    Repository repository =
+                            new Repository(name, url);
 
-                return repositoryRepository.save(repository);
-            });
-}
+                    return repositoryRepository.save(repository);
+                });
+    }
+
+    public Repository saveRepository(
+            Repository repository
+    ) {
+        return repositoryRepository.save(repository);
+    }
+
+    public void deleteRepository(Long id) {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException(
+                    "Repository ID must be positive"
+            );
+        }
+
+        if (!repositoryRepository.existsById(id)) {
+            throw new IllegalArgumentException(
+                    "Repository not found: " + id
+            );
+        }
+
+        repositoryRepository.deleteById(id);
+    }
 }

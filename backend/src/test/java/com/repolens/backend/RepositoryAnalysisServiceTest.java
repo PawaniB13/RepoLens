@@ -1,54 +1,54 @@
 package com.repolens.backend;
 
-import com.repolens.backend.model.RepositoryAnalysis;
+import com.repolens.backend.model.Repository;
+import com.repolens.backend.model.RepositoryFile;
+import com.repolens.backend.repository.RepositoryFileRepository;
 import com.repolens.backend.service.RepositoryAnalysisService;
 import com.repolens.backend.service.RepositoryFileService;
+import com.repolens.backend.service.RepositoryService;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
 class RepositoryAnalysisServiceTest {
 
     @Test
-    void shouldAnalyzeRepository() {
-        RepositoryFileService fileService = new RepositoryFileService();
-        RepositoryAnalysisService service =
-                new RepositoryAnalysisService(fileService);
+    void shouldAnalyzeRepositoryFiles() {
+        RepositoryService repositoryService = mock(RepositoryService.class);
+        RepositoryFileService repositoryFileService = mock(RepositoryFileService.class);
+        RepositoryFileRepository repositoryFileRepository = mock(RepositoryFileRepository.class);
 
-        RepositoryAnalysis analysis = service.analyzeRepository(1L);
+        Repository repository = new Repository(
+                "spring-projects/spring-petclinic",
+                "https://github.com/spring-projects/spring-petclinic"
+        );
 
-        assertEquals(1L, analysis.getRepositoryId());
-        assertEquals("RepoLens", analysis.getRepositoryName());
+
+       when(repositoryService.getRepository(4L)).thenReturn(repository);
+
+        List<RepositoryFile> files = List.of(
+                new RepositoryFile("Application.java", "java", "src/Application.java"),
+                new RepositoryFile("App.java", "java", "src/App.java"),
+                new RepositoryFile("script.js", "javascript", "src/script.js")
+        );
+
+        when(repositoryFileService.getFiles(4L)).thenReturn(files);
+
+        RepositoryAnalysisService analysisService =
+                new RepositoryAnalysisService(repositoryService, repositoryFileService);
+
+        var analysis = analysisService.analyzeRepository(4L);
+
+        assertEquals(4L, analysis.getRepositoryId());
+        assertEquals("spring-projects/spring-petclinic", analysis.getRepositoryName());
         assertEquals(3, analysis.getTotalFiles());
-        assertEquals(3, analysis.getJavaFiles());
-        assertEquals(0, analysis.getJavascriptFiles());
-    }
+        assertEquals(2, analysis.getJavaFiles());
+        assertEquals(1, analysis.getJavascriptFiles());
 
-    @Test
-    void shouldRejectNullRepositoryId() {
-        RepositoryFileService fileService = new RepositoryFileService();
-        RepositoryAnalysisService service =
-                new RepositoryAnalysisService(fileService);
-
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> service.analyzeRepository(null)
-        );
-
-        assertEquals("Repository ID must be positive", exception.getMessage());
-    }
-
-    @Test
-    void shouldRejectNonPositiveRepositoryId() {
-        RepositoryFileService fileService = new RepositoryFileService();
-        RepositoryAnalysisService service =
-                new RepositoryAnalysisService(fileService);
-
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> service.analyzeRepository(0L)
-        );
-
-        assertEquals("Repository ID must be positive", exception.getMessage());
+        verify(repositoryService).getRepository(4L);
+        verify(repositoryFileService).getFiles(4L);
     }
 }

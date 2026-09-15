@@ -2,6 +2,7 @@ package com.repolens.backend.service;
 
 import com.repolens.backend.model.Repository;
 import com.repolens.backend.model.RepositoryFile;
+import com.repolens.backend.repository.RepositoryFileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -16,32 +17,27 @@ import java.util.Map;
 public class RepositoryFileService {
 
     private final RepositoryService repositoryService;
+    private final RepositoryFileRepository repositoryFileRepository;
     private final RestClient restClient;
 
-    /*
-     * Constructor used by Spring Boot.
-     */
     @Autowired
-    public RepositoryFileService(RepositoryService repositoryService) {
+    public RepositoryFileService(
+            RepositoryService repositoryService,
+            RepositoryFileRepository repositoryFileRepository
+    ) {
         this.repositoryService = repositoryService;
+        this.repositoryFileRepository = repositoryFileRepository;
 
         this.restClient = RestClient.builder()
                 .baseUrl("https://api.github.com")
-                .defaultHeader("Accept", "application/vnd.github+json")
-                .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
-                .build();
-    }
-
-    /*
-     * Constructor used by existing unit tests.
-     */
-    public RepositoryFileService() {
-        this.repositoryService = null;
-
-        this.restClient = RestClient.builder()
-                .baseUrl("https://api.github.com")
-                .defaultHeader("Accept", "application/vnd.github+json")
-                .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
+                .defaultHeader(
+                        "Accept",
+                        "application/vnd.github+json"
+                )
+                .defaultHeader(
+                        "X-GitHub-Api-Version",
+                        "2022-11-28"
+                )
                 .build();
     }
 
@@ -52,14 +48,26 @@ public class RepositoryFileService {
             );
         }
 
+        Repository repository =
+                repositoryService.getRepository(repositoryId);
+
         /*
-         * Existing tests use the no-argument constructor.
+         * Return files already stored in the database.
+         * This prevents normal GET requests and tests from
+         * unnecessarily calling GitHub.
          */
-        if (repositoryService == null) {
-            return getTestFiles();
+        List<RepositoryFile> storedFiles =
+                repositoryFileRepository.findByRepositoryId(repositoryId);
+
+        if (storedFiles != null && !storedFiles.isEmpty()) {
+            return storedFiles;
         }
 
-        Repository repository = findRepository(repositoryId);
+        /*
+         * If no files are stored yet, load them from GitHub.
+         */
+        Map<?, ?> repositoryResponse =
+                getGitHubRepository(repository);
 
         String[] repositoryParts =
                 parseGitHubRepository(repository.getUrl());
@@ -67,29 +75,23 @@ public class RepositoryFileService {
         String owner = repositoryParts[0];
         String repo = repositoryParts[1];
 
-        Map<?, ?> repositoryResponse = restClient.get()
-                .uri("/repos/{owner}/{repo}", owner, repo)
-                .retrieve()
-                .body(Map.class);
-
-        if (repositoryResponse == null) {
-            throw new IllegalArgumentException(
-                    "GitHub repository was not found"
-            );
-        }
-
-        Object defaultBranchObject =
-                repositoryResponse.get("default_branch");
-
-        String defaultBranch = defaultBranchObject == null
-                ? "main"
-                : String.valueOf(defaultBranchObject);
+        String defaultBranch = getStringValue(
+                repositoryResponse,
+                "default_branch",
+                "main"
+        );
 
         Map<?, ?> treeResponse = restClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/repos/{owner}/{repo}/git/trees/{branch}")
+                        .path(
+                                "/repos/{owner}/{repo}/git/trees/{branch}"
+                        )
                         .queryParam("recursive", "1")
-                        .build(owner, repo, defaultBranch))
+                        .build(
+                                owner,
+                                repo,
+                                defaultBranch
+                        ))
                 .retrieve()
                 .body(Map.class);
 
@@ -107,38 +109,80 @@ public class RepositoryFileService {
             );
         }
 
-        List<?> tree = (List<?>) treeObject;
-
         List<RepositoryFile> files = new ArrayList<>();
 
-        for (Object item : tree) {
+        for (Object item : (List<?>) treeObject) {
             if (!(item instanceof Map<?, ?>)) {
                 continue;
             }
 
             Map<?, ?> itemMap = (Map<?, ?>) item;
 
-            String itemType = String.valueOf(itemMap.get("type"));
-
-            if (!"blob".equals(itemType)) {
+            if (!"blob".equals(
+                    String.valueOf(itemMap.get("type"))
+            )) {
                 continue;
             }
 
-            String path = String.valueOf(itemMap.get("path"));
+            String path = String.valueOf(
+                    itemMap.get("path")
+            );
 
-            RepositoryFile file = new RepositoryFile();
+            RepositoryFile file = new RepositoryFile(
+                    getFileName(path),
+                    getFileType(path),
+                    path
+            );
 
-            file.setPath(path);
-            file.setFileName(getFileName(path));
-            file.setFileType(getFileType(path));
-
+            file.setRepository(repository);
             files.add(file);
         }
 
         return files;
     }
 
-    public String getFileContent(Long repositoryId, String path) {
+    public List<RepositoryFile> refreshFiles(Long repositoryId) {
+        if (repositoryId == null || repositoryId <= 0) {
+            throw new IllegalArgumentException(
+                    "Repository ID must be positive"
+            );
+        }
+
+        Repository repository =
+                repositoryService.getRepository(repositoryId);
+
+        repository.getFiles().clear();
+
+        List<RepositoryFile> latestFiles =
+                loadFilesFromGitHub(repository);
+
+        for (RepositoryFile file : latestFiles) {
+            repository.addFile(file);
+        }
+
+        repositoryService.saveRepository(repository);
+
+        return repositoryFileRepository
+                .findByRepositoryId(repositoryId);
+    }
+
+    public Map<?, ?> getGitHubRepositoryMetadata(Long repositoryId) {
+        if (repositoryId == null || repositoryId <= 0) {
+            throw new IllegalArgumentException(
+                    "Repository ID must be positive"
+            );
+        }
+
+        Repository repository =
+                repositoryService.getRepository(repositoryId);
+
+        return getGitHubRepository(repository);
+    }
+
+    public String getFileContent(
+            Long repositoryId,
+            String path
+    ) {
         if (repositoryId == null || repositoryId <= 0) {
             throw new IllegalArgumentException(
                     "Repository ID must be positive"
@@ -151,14 +195,8 @@ public class RepositoryFileService {
             );
         }
 
-        /*
-         * Fallback for unit tests using the no-argument constructor.
-         */
-        if (repositoryService == null) {
-            return "Test file content for: " + path;
-        }
-
-        Repository repository = findRepository(repositoryId);
+        Repository repository =
+                repositoryService.getRepository(repositoryId);
 
         String[] repositoryParts =
                 parseGitHubRepository(repository.getUrl());
@@ -168,8 +206,14 @@ public class RepositoryFileService {
 
         Map<?, ?> response = restClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/repos/{owner}/{repo}/contents/{path}")
-                        .build(owner, repo, path))
+                        .path(
+                                "/repos/{owner}/{repo}/contents/{path}"
+                        )
+                        .build(
+                                owner,
+                                repo,
+                                path
+                        ))
                 .retrieve()
                 .body(Map.class);
 
@@ -187,15 +231,13 @@ public class RepositoryFileService {
             );
         }
 
-        String encodedContent = (String) contentObject;
-
-        String cleanContent = encodedContent
+        String cleanContent = ((String) contentObject)
                 .replace("\n", "")
                 .replace("\r", "")
                 .trim();
 
-        byte[] decodedBytes = Base64.getMimeDecoder()
-                .decode(cleanContent);
+        byte[] decodedBytes =
+                Base64.getMimeDecoder().decode(cleanContent);
 
         return new String(
                 decodedBytes,
@@ -203,18 +245,113 @@ public class RepositoryFileService {
         );
     }
 
-    private Repository findRepository(Long repositoryId) {
-        return repositoryService.getRepositories()
-                .stream()
-                .filter(repository ->
-                        repository.getId().equals(repositoryId)
-                )
-                .findFirst()
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Repository not found: " + repositoryId
+    private List<RepositoryFile> loadFilesFromGitHub(
+            Repository repository
+    ) {
+        Map<?, ?> repositoryResponse =
+                getGitHubRepository(repository);
+
+        String[] repositoryParts =
+                parseGitHubRepository(repository.getUrl());
+
+        String owner = repositoryParts[0];
+        String repo = repositoryParts[1];
+
+        String defaultBranch = getStringValue(
+                repositoryResponse,
+                "default_branch",
+                "main"
+        );
+
+        Map<?, ?> treeResponse = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(
+                                "/repos/{owner}/{repo}/git/trees/{branch}"
                         )
-                );
+                        .queryParam("recursive", "1")
+                        .build(
+                                owner,
+                                repo,
+                                defaultBranch
+                        ))
+                .retrieve()
+                .body(Map.class);
+
+        if (treeResponse == null) {
+            throw new IllegalArgumentException(
+                    "GitHub repository files could not be loaded"
+            );
+        }
+
+        Object treeObject = treeResponse.get("tree");
+
+        if (!(treeObject instanceof List<?>)) {
+            throw new IllegalArgumentException(
+                    "GitHub repository tree is invalid"
+            );
+        }
+
+        List<RepositoryFile> files = new ArrayList<>();
+
+        for (Object item : (List<?>) treeObject) {
+            if (!(item instanceof Map<?, ?>)) {
+                continue;
+            }
+
+            Map<?, ?> itemMap = (Map<?, ?>) item;
+
+            if (!"blob".equals(
+                    String.valueOf(itemMap.get("type"))
+            )) {
+                continue;
+            }
+
+            String path = String.valueOf(
+                    itemMap.get("path")
+            );
+
+            RepositoryFile file = new RepositoryFile(
+                    getFileName(path),
+                    getFileType(path),
+                    path
+            );
+
+            file.setRepository(repository);
+            files.add(file);
+        }
+
+        return files;
+    }
+
+    private Map<?, ?> getGitHubRepository(
+            Repository repository
+    ) {
+        String[] repositoryParts =
+                parseGitHubRepository(repository.getUrl());
+
+        return restClient.get()
+                .uri(
+                        "/repos/{owner}/{repo}",
+                        repositoryParts[0],
+                        repositoryParts[1]
+                )
+                .retrieve()
+                .body(Map.class);
+    }
+
+    private String getStringValue(
+            Map<?, ?> map,
+            String key,
+            String defaultValue
+    ) {
+        Object value = map.get(key);
+
+        if (value == null
+                || String.valueOf(value).isBlank()) {
+            return defaultValue;
+        }
+
+        return String.valueOf(value);
     }
 
     private String[] parseGitHubRepository(String url) {
@@ -239,14 +376,9 @@ public class RepositoryFileService {
             );
         }
 
-        String owner = parts[0];
-
-        String repo = parts[1]
-                .replaceAll("\\.git$", "");
-
         return new String[]{
-                owner,
-                repo
+                parts[0],
+                parts[1].replaceAll("\\.git$", "")
         };
     }
 
@@ -272,28 +404,4 @@ public class RepositoryFileService {
         return extension.substring(0, 1).toUpperCase()
                 + extension.substring(1);
     }
-
-    private List<RepositoryFile> getTestFiles() {
-    List<RepositoryFile> files = new ArrayList<>();
-
-    RepositoryFile firstFile = new RepositoryFile();
-    firstFile.setFileName("Repository.java");
-    firstFile.setFileType("Java");
-    firstFile.setPath("src/main/java/Repository.java");
-    files.add(firstFile);
-
-    RepositoryFile secondFile = new RepositoryFile();
-    secondFile.setFileName("RepositoryService.java");
-    secondFile.setFileType("Java");
-    secondFile.setPath("src/main/java/RepositoryService.java");
-    files.add(secondFile);
-
-    RepositoryFile thirdFile = new RepositoryFile();
-    thirdFile.setFileName("RepositoryFileService.java");
-    thirdFile.setFileType("Java");
-    thirdFile.setPath("src/main/java/RepositoryFileService.java");
-    files.add(thirdFile);
-
-    return files;
-}
 }

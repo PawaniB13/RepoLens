@@ -1,171 +1,93 @@
 package com.repolens.backend.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.repolens.backend.model.GitHubChangedFile;
-import com.repolens.backend.model.GitHubWebhookEvent;
-import com.repolens.backend.repository.GitHubChangedFileRepository;
-import com.repolens.backend.repository.GitHubWebhookEventRepository;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class GitHubWebhookService {
 
-    private final ObjectMapper objectMapper;
-    private final GitHubWebhookEventRepository webhookEventRepository;
-    private final GitHubChangedFileRepository changedFileRepository;
+    public WebhookData parsePushPayload(Map<String, Object> payload) {
+        if (payload == null) {
+            throw new IllegalArgumentException("Webhook payload cannot be null");
+        }
 
-    public GitHubWebhookService(
-            ObjectMapper objectMapper,
-            GitHubWebhookEventRepository webhookEventRepository,
-            GitHubChangedFileRepository changedFileRepository
-    ) {
-        this.objectMapper = objectMapper;
-        this.webhookEventRepository = webhookEventRepository;
-        this.changedFileRepository = changedFileRepository;
+        Map<String, Object> repository =
+                castMap(payload.get("repository"));
+
+        Map<String, Object> owner =
+                castMap(repository.get("owner"));
+
+        String ownerLogin = getString(owner, "login");
+        String repositoryName = getString(repository, "name");
+        String repositoryUrl = getString(repository, "html_url");
+
+        String afterCommit = getString(payload, "after");
+
+        List<String> changedFiles = extractChangedFiles(payload);
+
+        return new WebhookData(
+                ownerLogin,
+                repositoryName,
+                repositoryUrl,
+                afterCommit,
+                changedFiles
+        );
     }
 
-    public void processWebhook(
-            String eventType,
-            String deliveryId,
-            String signature,
-            String payload
-    ) {
-        if (eventType == null || eventType.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Missing GitHub event type"
-            );
+    private List<String> extractChangedFiles(Map<String, Object> payload) {
+        Object commitsValue = payload.get("commits");
+
+        if (!(commitsValue instanceof List<?> commits)) {
+            return List.of();
         }
 
-        if (deliveryId == null || deliveryId.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Missing GitHub delivery ID"
-            );
-        }
+        return commits.stream()
+                .filter(Map.class::isInstance)
+                .map(commit -> castMap(commit))
+                .flatMap(commit -> {
+                    List<String> files = new java.util.ArrayList<>();
 
-        if (payload == null || payload.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Missing GitHub webhook payload"
-            );
-        }
+                    addFiles(commit.get("added"), files);
+                    addFiles(commit.get("modified"), files);
+                    addFiles(commit.get("removed"), files);
 
-        if (webhookEventRepository.existsByDeliveryId(deliveryId)) {
-            System.out.println(
-                    "Duplicate GitHub webhook ignored: " + deliveryId
-            );
-            return;
-        }
+                    return files.stream();
+                })
+                .distinct()
+                .toList();
+    }
 
-        try {
-            JsonNode root = objectMapper.readTree(payload);
-
-            String repository = root.path("repository")
-                    .path("full_name")
-                    .asText(null);
-
-            String branch = root.path("ref")
-                    .asText(null);
-
-            String sender = root.path("sender")
-                    .path("login")
-                    .asText(null);
-
-            GitHubWebhookEvent webhookEvent =
-                    new GitHubWebhookEvent(
-                            deliveryId,
-                            eventType,
-                            repository,
-                            branch,
-                            sender
-                    );
-
-            webhookEventRepository.save(webhookEvent);
-
-            if ("push".equals(eventType)) {
-                saveChangedFiles(root, deliveryId);
-            }
-
-            System.out.println("GitHub webhook saved");
-            System.out.println("Event type: " + eventType);
-            System.out.println("Delivery ID: " + deliveryId);
-            System.out.println("Repository: " + repository);
-            System.out.println("Branch: " + branch);
-            System.out.println("Sender: " + sender);
-
-        } catch (Exception exception) {
-            throw new IllegalArgumentException(
-                    "Invalid GitHub webhook payload",
-                    exception
-            );
+    private void addFiles(Object value, List<String> files) {
+        if (value instanceof List<?> values) {
+            values.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .forEach(files::add);
         }
     }
 
-    private void saveChangedFiles(
-            JsonNode root,
-            String deliveryId
-    ) {
-        JsonNode commits = root.path("commits");
-
-        if (!commits.isArray()) {
-            System.out.println(
-                    "No commits found in push webhook payload"
-            );
-            return;
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> castMap(Object value) {
+        if (!(value instanceof Map<?, ?>)) {
+            return Map.of();
         }
 
-        for (JsonNode commit : commits) {
-            String commitId = commit.path("id")
-                    .asText("unknown");
-
-            saveFileList(
-                    deliveryId,
-                    commitId,
-                    commit.path("added"),
-                    "ADDED"
-            );
-
-            saveFileList(
-                    deliveryId,
-                    commitId,
-                    commit.path("modified"),
-                    "MODIFIED"
-            );
-
-            saveFileList(
-                    deliveryId,
-                    commitId,
-                    commit.path("removed"),
-                    "REMOVED"
-            );
-        }
+        return (Map<String, Object>) value;
     }
 
-    private void saveFileList(
-            String deliveryId,
-            String commitId,
-            JsonNode files,
-            String changeType
+    private String getString(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value == null ? null : value.toString();
+    }
+
+    public record WebhookData(
+            String owner,
+            String repository,
+            String repositoryUrl,
+            String commitSha,
+            List<String> changedFiles
     ) {
-        if (!files.isArray()) {
-            return;
-        }
-
-        for (JsonNode file : files) {
-            String filePath = file.asText();
-
-            GitHubChangedFile changedFile =
-                    new GitHubChangedFile(
-                            deliveryId,
-                            commitId,
-                            filePath,
-                            changeType
-                    );
-
-            changedFileRepository.save(changedFile);
-
-            System.out.println(
-                    changeType + " file saved: " + filePath
-            );
-        }
     }
 }
